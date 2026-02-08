@@ -35,7 +35,7 @@ def gerar_pdf(dados_selecionados):
         pdf.cell(0, 10, f"Membro: {r.get('nome','-')}", ln=True)
         pdf.set_font("Arial", size=10)
         pdf.cell(0, 8, f"Nascimento: {r.get('nascimento','-')} | Tel: {r.get('telefone','-')}", ln=True)
-        pdf.cell(0, 8, f"Endereco: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}", ln=True)
+        pdf.cell(0, 8, f"Endereco: {r.get('rua','-')}, {r.get('num','-')} {r.get('complemento','-')} - {r.get('bairro','-')}", ln=True)
         pdf.cell(0, 8, f"E-mail: {r.get('email','-')}", ln=True)
         pdf.ln(5)
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
@@ -67,15 +67,18 @@ else:
     st.title("🌳 Portal Família Buscapé")
     t1, t2, t3, t4 = st.tabs(["🔍 Membros", "🎂 Aniversários", "➕ Cadastrar", "✏️ Editar"])
 
-    # --- TAB 1: MEMBROS ---
+    # --- TAB 1: MEMBROS (COM PDF) ---
     with t1:
-        st.subheader("Visualizar e Exportar")
+        st.subheader("Membros da Família")
         if not df.empty:
+            st.info("Selecione os membros abaixo e clique no botão na barra lateral para exportar PDF.")
             selecionados = []
+            
             for i, r in df.iterrows():
                 col_sel, col_exp = st.columns([0.1, 3.9])
                 with col_sel:
-                    if st.checkbox("", key=f"ch_{i}"): selecionados.append(r)
+                    if st.checkbox("", key=f"sel_p_{i}"):
+                        selecionados.append(r)
                 with col_exp:
                     label = f"👤 {r.get('nome','-')} | 📅 {r.get('nascimento','-')} | 📞 {r.get('telefone','-')}"
                     with st.expander(label):
@@ -84,21 +87,20 @@ else:
                             st.write(f"**Ascendente:** {r.get('ascendente','-')}")
                             st.write(f"**E-mail:** {r.get('email','-')}")
                         with c2:
-                            rua, num, bairro = r.get('rua',''), r.get('num',''), r.get('bairro','')
+                            rua, num, comp = r.get('rua',''), r.get('num',''), r.get('complemento','')
+                            st.write(f"🏠 {rua}, {num} {comp}")
+                            st.write(f"Bairro: {r.get('bairro','-')} | CEP: {r.get('cep','-')}")
                             if rua:
-                                st.write(f"🏠 {rua}, {num} - {bairro}")
-                                link_maps = f"https://www.google.com/maps/search/?api=1&query={quote(f'{rua}, {num}, {bairro}, Brazil')}"
+                                link_maps = f"https://www.google.com/maps/search/?api=1&query={quote(f'{rua}, {num}, {r.get('bairro','')}, Brazil')}"
                                 st.link_button("📍 Maps", link_maps)
                         with c3:
                             tel_puro = limpar_numero(r.get('telefone',''))
                             if len(tel_puro) >= 10:
                                 st.link_button("💬 Zap", f"https://wa.me/55{tel_puro}")
-                                st.link_button("📞 Ligar", f"tel:+55{tel_puro}")
 
             if selecionados:
-                pdf_bytes = gerar_pdf(pd.DataFrame(selecionados))
-                st.sidebar.download_button("📄 Baixar PDF Selecionados", pdf_bytes, "familia_buscape.pdf", "application/pdf")
-        else: st.info("Nenhum membro cadastrado.")
+                pdf_data = gerar_pdf(pd.DataFrame(selecionados))
+                st.sidebar.download_button("📄 Baixar PDF Selecionados", pdf_data, "familia_buscape.pdf", "application/pdf")
 
     # --- TAB 2: ANIVERSÁRIOS 🎂 ---
     with t2:
@@ -115,9 +117,9 @@ else:
             if niver_list:
                 for n in sorted(niver_list, key=lambda x: x['dia']):
                     st.write(f"🎂 **Dia {n['dia']}** - {n['nome']}")
-            else: st.info("Ninguém assopra velinhas este mês.")
+            else: st.info("Nenhum aniversariante encontrado para este mês.")
 
-    # --- TAB 3: CADASTRO (TODOS OS CAMPOS) ---
+    # --- TAB 3: CADASTRO ---
     with t3:
         st.subheader("Novo Integrante")
         with st.form("form_novo", clear_on_submit=True):
@@ -126,20 +128,20 @@ else:
                 f_nome = st.text_input("Nome Completo")
                 f_nasc = st.text_input("Nascimento (DDMMAAAA)")
                 f_asc = st.selectbox("Ascendente", ["Raiz"] + lista_nomes)
-                f_tel = st.text_input("Telefone (Com DDD)")
+                f_tel = st.text_input("Telefone")
                 f_mail = st.text_input("E-mail")
             with col2:
                 f_rua = st.text_input("Rua")
                 f_num = st.text_input("Número")
+                f_comp = st.text_input("Complemento (Apto, Bloco, etc)")
                 f_bair = st.text_input("Bairro")
                 f_cep = st.text_input("CEP")
-                f_comp = st.text_input("Complemento")
             
-            if st.form_submit_button("💾 SALVAR NA NUVEM"):
+            if st.form_submit_button("💾 SALVAR"):
                 if f_nome:
                     dados = [f_nome, aplicar_mascara_data(f_nasc), f_asc, aplicar_mascara_tel(f_tel), f_mail, f_rua, f_num, f_comp, f_bair, f_cep]
                     requests.post(WEBAPP_URL, json={"action": "append", "data": dados})
-                    st.success("✅ Salvo e formulário limpo!")
+                    st.success("✅ Salvo! O formulário foi limpo.")
                     st.rerun()
 
     # --- TAB 4: EDITAR E EXCLUIR ---
@@ -156,17 +158,13 @@ else:
                     e_nasc = st.text_input("Nascimento", value=p.get('nascimento',''))
                     e_tel = st.text_input("Telefone", value=p.get('telefone',''))
                     e_mail = st.text_input("E-mail", value=p.get('email',''))
-                    # Ascendente na edição
-                    l_asc = ["Raiz"] + [n for n in lista_nomes if n != sel]
-                    cur_asc = p.get('ascendente','Raiz')
-                    i_asc = l_asc.index(cur_asc) if cur_asc in l_asc else 0
-                    e_asc = st.selectbox("Ascendente", l_asc, index=i_asc)
+                    e_asc = st.text_input("Ascendente", value=p.get('ascendente',''))
                 with c2:
                     e_rua = st.text_input("Rua", value=p.get('rua',''))
                     e_num = st.text_input("Nº", value=p.get('num',''))
+                    e_co = st.text_input("Complemento", value=p.get('complemento',''))
                     e_ba = st.text_input("Bairro", value=p.get('bairro',''))
                     e_ce = st.text_input("CEP", value=p.get('cep',''))
-                    e_co = st.text_input("Complemento", value=p.get('complemento',''))
                 
                 b1, b2 = st.columns(2)
                 if b1.form_submit_button("💾 SALVAR ALTERAÇÕES"):
