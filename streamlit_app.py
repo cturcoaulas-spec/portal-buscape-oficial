@@ -34,7 +34,7 @@ def mask_tel(v):
     if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
     return n if n else "-"
 
-# --- CARREGAMENTO RESILIENTE (BUSCA TODAS AS COLUNAS) ---
+# --- CARREGAMENTO RESILIENTE ---
 @st.cache_data(ttl=2)
 def carregar_dados():
     try:
@@ -65,14 +65,14 @@ def carregar_dados():
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
-    psw = st.text_input("Senha", type="password")
-    if st.button("ENTRAR"):
+    psw = st.text_input("Senha da Família", type="password")
+    if st.button("ENTRAR NO PORTAL"):
         if psw == "buscape2026": st.session_state.logado = True; st.rerun()
         else: st.error("Senha incorreta!")
 else:
     df_todo = carregar_dados()
     if df_todo.empty:
-        st.error("⚠️ Dados não encontrados. Verifique a coluna 'Nome' na planilha.")
+        st.error("⚠️ Dados não encontrados.")
     else:
         df_m = df_todo[df_todo['nome'] != ""].sort_values(by='nome').copy()
         nomes_lista = sorted(df_m['nome'].unique().tolist())
@@ -93,11 +93,9 @@ else:
                     with ci:
                         st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))}")
                         st.write(f"🏠 **End:** {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}")
-                        st.write(f"🌳 **Vínculo:** {r.get('vinculo','-')}")
                     with cl:
                         t = re.sub(r'\D', '', str(r.get('telefone','')))
                         if len(t) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{t}")
-                        if r.get('rua'): st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{r.get('rua','')},{r.get('num','')},{r.get('bairro','')}')}")
 
         with tabs[1]: # 2. Niver
             m_at = datetime.now().month
@@ -115,9 +113,9 @@ else:
                 v1, v2, v3 = st.text_input("A1", avs[0]), st.text_input("A2", avs[1]), st.text_input("A3", avs[2])
                 if st.form_submit_button("💾 SALVAR MURAL"):
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]})
-                    st.success("Salvo!"); time.sleep(1); st.rerun()
+                    st.success("Mural atualizado!"); time.sleep(1); st.rerun()
 
-        with tabs[3]: # 4. Cadastrar (TODOS OS CAMPOS)
+        with tabs[3]: # 4. Cadastrar
             with st.form("c_f", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1: 
@@ -126,31 +124,47 @@ else:
                 with c2:
                     ru = st.text_input("Rua"); nu = st.text_input("Nº"); ba = st.text_input("Bairro")
                     ce = st.text_input("CEP"); rc = st.selectbox("Referência", ["Raiz"] + nomes_lista)
-                if st.form_submit_button("💾 CADASTRAR MEMBRO"):
+                if st.form_submit_button("💾 SALVAR NOVO MEMBRO"):
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dc, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, em, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]})
                     st.success("Cadastrado!"); time.sleep(1); st.rerun()
 
-        with tabs[4]: # 5. Gerenciar (TODOS OS CAMPOS)
-            esc = st.selectbox("Escolha alguém para editar", ["--"] + nomes_lista)
+        with tabs[4]: # 5. Gerenciar (NOVO LAYOUT IGUAL AO CADASTRAR)
+            st.subheader("✏️ Editar ou Excluir Membro")
+            esc = st.selectbox("Selecione quem deseja alterar", ["--"] + nomes_lista)
+            
             if esc != "--":
-                m = df_m[df_m['nome'] == esc].iloc[0]
-                idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
-                with st.form("g_f"):
-                    g1, g2 = st.columns(2)
-                    with g1:
-                        ed = st.text_input("Nascimento", value=m.get('nascimento',''))
-                        et = st.text_input("Telefone", value=m.get('telefone',''))
-                        ee = st.text_input("E-mail", value=m.get('email',''))
-                    with g2:
-                        er = st.text_input("Rua", value=m.get('rua',''))
-                        en = st.text_input("Nº", value=m.get('num',''))
-                        eb = st.text_input("Bairro", value=m.get('bairro',''))
-                    if st.form_submit_button("💾 ATUALIZAR DADOS"):
-                        requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, ed, m.get('vinculo',''), et, ee, er, en, m.get('conjuge',''), eb, m.get('cep','')]})
-                        st.success("Atualizado!"); time.sleep(1); st.rerun()
+                m_busca = df_m[df_m['nome'] == esc]
+                if not m_busca.empty:
+                    m = m_busca.iloc[0]
+                    idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
+                    
+                    with st.form("g_f"):
+                        g1, g2 = st.columns(2)
+                        with g1:
+                            st.text_input("Nome (Não editável)", value=esc, disabled=True)
+                            ed = st.text_input("Nascimento", value=m.get('nascimento',''))
+                            et = st.text_input("Telefone", value=m.get('telefone',''))
+                            ee = st.text_input("E-mail", value=m.get('email',''))
+                        with g2:
+                            er = st.text_input("Rua", value=m.get('rua',''))
+                            en = st.text_input("Nº", value=m.get('num',''))
+                            eb = st.text_input("Bairro", value=m.get('bairro',''))
+                            ec = st.text_input("CEP", value=m.get('cep',''))
+                        
+                        st.info(f"🌳 Vínculo atual: {m.get('vinculo','-')}")
+                        
+                        col_btn1, col_btn2 = st.columns(2)
+                        if col_btn1.form_submit_button("💾 SALVAR ALTERAÇÕES"):
+                            requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, ed, m.get('vinculo',''), et, ee, er, en, m.get('conjuge',''), eb, ec]})
+                            st.success("Dados atualizados!"); time.sleep(1); st.rerun()
+                        
+                        if col_btn2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
+                            requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
+                            st.warning("Membro excluído!"); time.sleep(1); st.rerun()
 
         with tabs[5]: # 6. Árvore
-            dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE"];'
+            st.subheader("🌳 Nossa Árvore")
+            dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"];'
             for _, row in df_m.iterrows():
                 n, v = str(row['nome']), str(row.get('vinculo','Raiz'))
                 if " de " in v:
@@ -160,7 +174,7 @@ else:
             st.graphviz_chart(dot + '}')
 
         with tabs[6]: # 7. Manual
-            st.markdown("### 📖 Guia de Uso")
+            st.markdown("### 📖 Guia do Usuário")
             st.info("Senha: **buscape2026**")
-            st.write("1. **Atualizar:** Use o botão 'Sincronizar Agora' na lateral se algo não aparecer.")
-            st.write("2. **Instalar:** No Chrome (Android) use 'Adicionar à tela inicial'. No Safari (iPhone) use 'Adicionar à Tela de Início'.")
+            st.write("1. **Atualizar:** Se mudar algo na planilha e não aparecer, use o botão 'Sincronizar' na lateral.")
+            st.write("2. **No Celular:** No Chrome, use 'Adicionar à tela inicial'. No Safari, use 'Adicionar à Tela de Início'.")
