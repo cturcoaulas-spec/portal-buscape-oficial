@@ -34,7 +34,7 @@ def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, "Relatório Família Buscapé", ln=True, align="C")
+    pdf.cell(200, 10, "Relatorio Familia Buscape", ln=True, align="C")
     for _, r in dados.iterrows():
         pdf.set_font("Arial", "B", 11)
         pdf.cell(0, 8, f"Nome: {r.get('nome','-')}", ln=True)
@@ -73,6 +73,7 @@ else:
     df_m = df_todo[df_todo['nome'].str.strip() != ""].sort_values(by='nome').copy()
     nomes_lista = sorted([n.strip() for n in df_m['nome'].unique().tolist() if n.strip()])
 
+    # --- SIDEBAR (NOTIFICAÇÕES RESTAURADAS) ---
     with st.sidebar:
         st.title("🔔 Notificações")
         hoje_dm = datetime.now().strftime("%d/%m")
@@ -86,7 +87,7 @@ else:
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Aniversários", "📢 Mural", "➕ Cadastrar", "✏️ Gerenciar"])
 
-    # --- TAB 1: MEMBROS (PDF E SELEÇÃO VOLTARAM) ---
+    # --- TAB 1: MEMBROS (LÓGICA DE CÔNJUGE E VÍNCULO CORRIGIDA) ---
     with tabs[0]:
         sel_ids = []
         c_topo = st.container()
@@ -99,24 +100,32 @@ else:
             with col_exp.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    # Lógica de Cônjuge (Sem X, só aliança)
-                    conj_p = str(r.get('conjuge','')).strip()
+                    # LÓGICA DE CÔNJUGE: Fim do FALSE e Reciprocidade André/Afonso
+                    conj_bruto = str(r.get('conjuge','')).strip()
+                    vinc_bruto = str(r.get('vinculo','')).strip()
+                    
+                    # Procura se alguém citou este membro como cônjuge
                     quem_me_citou = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
                     
                     parceiro = ""
-                    if conj_p and conj_p.lower() not in ["", "nan", "false", "0"]: parceiro = conj_p
-                    elif quem_me_citou: parceiro = quem_me_citou[0]
+                    if conj_bruto and conj_bruto.lower() not in ["", "nan", "false", "0"]:
+                        parceiro = conj_bruto
+                    elif "Cônjuge de" in vinc_bruto:
+                        parceiro = vinc_bruto.replace("Cônjuge de", "").strip()
+                    elif quem_me_citou:
+                        parceiro = quem_me_citou[0]
 
-                    if parceiro: st.write(f"💍 **Cônjuge:** {parceiro}")
-                    else: st.write(f"**Cônjuge:** Nenhum")
+                    if parceiro and parceiro != nome_at:
+                        st.write(f"💍 **Cônjuge:** {parceiro}")
+                    else:
+                        st.write(f"**Cônjuge:** Nenhum")
                     
-                    # Parentesco Automático "Filho(a) de"
-                    vinc_b = str(r.get('vinculo','')).strip()
-                    vinc_f = vinc_b
-                    if vinc_b and vinc_b != "Raiz" and "Cônjuge" not in vinc_b and "Filho" not in vinc_b:
-                        vinc_f = f"Filho(a) de {vinc_b}"
+                    # VÍNCULO AUTOMÁTICO: "Filho(a) de"
+                    vinc_final = vinc_bruto
+                    if vinc_bruto and vinc_bruto != "Raiz" and "Cônjuge" not in vinc_bruto and "Filho" not in vinc_bruto:
+                        vinc_final = f"Filho(a) de {vinc_bruto}"
                     
-                    st.write(f"📞 **Tel:** {r.get('telefone','-')} | 🌳 **Vínculo:** {vinc_f}")
+                    st.write(f"📞 **Tel:** {r.get('telefone','-')} | 🌳 **Vínculo:** {vinc_final}")
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})")
                     st.write(f"✉️ **E-mail:** {r.get('email','-')}")
                 with cl:
@@ -191,6 +200,3 @@ else:
                 if st.form_submit_button("💾 ATUALIZAR"):
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[esc, mask_data(e_d), f"{e_v_t} {e_ref}" if e_ref != "Raiz" else "Raiz", mask_tel(e_t), e_m, e_ru, e_nu, e_ref if "Cônjuge" in e_v_t else "", e_ba, e_ce]})
                     st.success("✅ ATUALIZAÇÃO REALIZADA COM SUCESSO!"); time.sleep(2); st.rerun()
-                if st.form_submit_button("🗑️ EXCLUIR"):
-                    requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[""]*10})
-                    st.success("🗑️ EXCLUÍDO!"); time.sleep(2); st.rerun()
