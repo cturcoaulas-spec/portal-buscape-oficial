@@ -3,20 +3,17 @@ import pandas as pd
 import requests
 import re
 
-# 1. CONFIGURAÇÃO DE TELA LARGA (Para visualizar todo o cadastro)
+# CONFIGURAÇÃO DE INTERFACE
 st.set_page_config(page_title="Portal Família Buscapé", page_icon="🌳", layout="wide")
 
-# 2. CONEXÃO - COLOQUE SEU LINK /EXEC AQUI
-# Sem este link real, o erro "MissingSchema" continuará acontecendo.
-# --- CONFIGURAÇÃO DE CONEXÃO ---
+# --- CONEXÃO ---
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzDd11VRMTQSvd3MDNZgok8qV4o_y4s0KhBaAJQFC0HZtg36mpydMTVmPQXg34lZp_RCQ/exec"
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 
-# 3. FUNÇÕES DE MÁSCARA AUTOMÁTICA
+# Máscaras
 def masc_tel(v):
     n = re.sub(r'\D', '', str(v))
     if len(n) == 11: return f"({n[:2]}) {n[2:7]}-{n[7:]}"
-    if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:]}"
     return v
 
 def masc_data(v):
@@ -24,100 +21,101 @@ def masc_data(v):
     if len(n) == 8: return f"{n[:2]}/{n[2:4]}/{n[4:]}"
     return v
 
-# 4. SISTEMA DE LOGIN
+# LOGIN
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
-    senha = st.text_input("Digite a Senha de Acesso:", type="password")
+    senha = st.text_input("Senha", type="password")
     if st.button("ENTRAR"):
         if senha == "buscape2026":
             st.session_state.logado = True
             st.rerun()
         else: st.error("Senha incorreta.")
 else:
-    # 5. CARREGAMENTO DE DADOS
+    # CARREGAR DADOS
     def carregar():
         try:
+            # Lendo os dados brutos da planilha
             df = pd.read_csv(CSV_URL, dtype=str).fillna("")
+            # Padroniza as colunas para evitar erros de letras maiúsculas/minúsculas
             df.columns = [c.strip().lower() for c in df.columns]
             return df
         except: return pd.DataFrame()
 
     df = carregar()
-    nomes_lista = sorted(df['nome'].tolist()) if not df.empty else []
+    # Pega a lista de nomes para os seletores (Ascendente e Edição)
+    nomes_lista = sorted(df['nome'].tolist()) if not df.empty and 'nome' in df.columns else []
 
     st.title("🌳 Portal Família Buscapé")
-    
-    # 6. ABAS DE NAVEGAÇÃO
-    tab1, tab2, tab3 = st.tabs(["🔍 Ver Cadastro Completo", "➕ Novo Membro", "✏️ Editar Dados"])
+    tab1, tab2, tab3 = st.tabs(["🔍 Ver Família", "➕ Cadastrar", "✏️ Editar"])
 
-    # --- ABA 1: VISUALIZAÇÃO ---
+    # --- ABA 1: VISUALIZAÇÃO EXPANSÍVEL ---
     with tab1:
-        st.subheader("Planilha de Dados da Família")
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.subheader("Membros Cadastrados")
+        if not df.empty:
+            for i, row in df.iterrows():
+                # Título que aparece antes de expandir
+                titulo = f"👤 {row.get('nome','Sem Nome')} | 📅 {row.get('nascimento','')} | 📞 {row.get('telefone','')}"
+                with st.expander(titulo):
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.write(f"**Ascendente:** {row.get('ascendente','')}")
+                        st.write(f"**E-mail:** {row.get('email','')}")
+                    with c2:
+                        st.write(f"**Endereço:** {row.get('rua','')}, {row.get('num','')} {row.get('comp','')}")
+                        st.write(f"**Bairro:** {row.get('bairro','')} | **CEP:** {row.get('cep','')}")
+        else:
+            st.info("Aguardando dados da planilha...")
 
     # --- ABA 2: CADASTRO ---
     with tab2:
-        st.subheader("Cadastrar Novo Integrante")
+        st.subheader("Novo Integrante")
         with st.form("form_novo", clear_on_submit=True):
-            c1, c2 = st.columns(2)
-            with c1:
+            col1, col2 = st.columns(2)
+            with col1:
                 f_nome = st.text_input("Nome Completo")
                 f_nasc = st.text_input("Nascimento (DDMMAAAA)")
                 f_asc  = st.selectbox("Ascendente", ["Raiz"] + nomes_lista)
                 f_tel  = st.text_input("Telefone")
                 f_mail = st.text_input("E-mail")
-            with c2:
-                f_rua  = st.text_input("Rua/Endereço")
+            with col2:
+                f_rua  = st.text_input("Rua")
                 f_num  = st.text_input("Número")
                 f_comp = st.text_input("Complemento")
                 f_bair = st.text_input("Bairro")
                 f_cep  = st.text_input("CEP")
             
-            # BOTÃO DE SUBMIT OBRIGATÓRIO
             if st.form_submit_button("SALVAR NA NUVEM"):
-                if f_nome and WEBAPP_URL.startswith("http"):
-                    # Organiza exatamente as 10 colunas da sua planilha
-                    dados = [f_nome, masc_data(f_nasc), f_asc, masc_tel(f_tel), f_mail, f_rua, f_num, f_comp, f_bair, f_cep]
+                if f_nome:
+                    # Dados na ordem exata da sua planilha: Nome, Nasc, Asc, Tel, Email, Rua, Num, Comp, Bair, CEP
+                    lista_dados = [f_nome, masc_data(f_nasc), f_asc, masc_tel(f_tel), f_mail, f_rua, f_num, f_comp, f_bair, f_cep]
                     try:
-                        requests.post(WEBAPP_URL, json={"action": "append", "data": dados})
-                        st.success("✅ Enviado com sucesso!")
+                        requests.post(WEBAPP_URL, json={"action": "append", "data": lista_dados})
+                        st.success("✅ Enviado! Aguarde alguns segundos para atualizar.")
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro de conexão: {e}")
-                else:
-                    st.warning("Verifique se o nome foi preenchido e se a URL do Script na linha 12 está correta.")
+                    except: st.error("Erro ao conectar com o Google.")
 
     # --- ABA 3: EDIÇÃO ---
     with tab3:
-        st.subheader("Atualizar Dados Existentes")
+        st.subheader("Atualizar Dados")
         if nomes_lista:
-            sel = st.selectbox("Escolha quem deseja editar:", nomes_lista)
-            p = df[df['nome'] == sel].iloc[0]
-            idx_planilha = df.index[df['nome'] == sel].tolist()[0] + 2
+            selecionado = st.selectbox("Escolha quem editar", nomes_lista)
+            pessoa = df[df['nome'] == selecionado].iloc[0]
+            # Calcula a linha na planilha (+2 porque o index começa em 0 e tem cabeçalho)
+            index_linha = df.index[df['nome'] == selecionado].tolist()[0] + 2
             
             with st.form("form_edit"):
-                e1, e2 = st.columns(2)
-                with e1:
-                    e_nasc = st.text_input("Nascimento", value=p.get('nascimento', ''))
-                    e_tel  = st.text_input("Telefone", value=p.get('telefone', ''))
-                    e_mail = st.text_input("E-mail", value=p.get('email', ''))
-                with e2:
-                    e_rua  = st.text_input("Rua", value=p.get('rua', ''))
-                    e_num  = st.text_input("Nº", value=p.get('num', ''))
-                    e_bair = st.text_input("Bairro", value=p.get('bairro', ''))
-                    e_cep  = st.text_input("CEP", value=p.get('cep', ''))
+                e_nasc = st.text_input("Nascimento", value=pessoa.get('nascimento',''))
+                e_tel  = st.text_input("Telefone", value=pessoa.get('telefone',''))
+                e_mail = st.text_input("E-mail", value=pessoa.get('email',''))
+                e_bair = st.text_input("Bairro", value=pessoa.get('bairro',''))
                 
-                # BOTÃO DE SUBMIT OBRIGATÓRIO
                 if st.form_submit_button("ATUALIZAR DADOS"):
-                    # Mantém a integridade das 10 colunas
-                    up = [sel, masc_data(e_nasc), p.get('ascendente','Raiz'), masc_tel(e_tel), e_mail, e_rua, e_num, p.get('comp',''), e_bair, e_cep]
-                    try:
-                        requests.post(WEBAPP_URL, json={"action": "edit", "row": idx_planilha, "data": up})
-                        st.success("✅ Dados atualizados!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao atualizar: {e}")
+                    # Monta a lista completa para não perder o que não foi editado
+                    dados_up = [selecionado, masc_data(e_nasc), pessoa.get('ascendente',''), masc_tel(e_tel), e_mail, 
+                                pessoa.get('rua',''), pessoa.get('num',''), pessoa.get('comp',''), e_bair, pessoa.get('cep','')]
+                    requests.post(WEBAPP_URL, json={"action": "edit", "row": index_linha, "data": dados_up})
+                    st.success("✅ Atualizado com sucesso!")
+                    st.rerun()
 
-    # RODAPÉ
-    st.sidebar.button("Sair do Portal", on_click=lambda: st.session_state.update({"logado": False}))
+    st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"logado": False}))
