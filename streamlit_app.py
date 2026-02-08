@@ -73,7 +73,7 @@ else:
     df_m = df_todo[df_todo['nome'].str.strip() != ""].sort_values(by='nome').copy()
     nomes_lista = sorted([n.strip() for n in df_m['nome'].unique().tolist() if n.strip()])
 
-    # --- SIDEBAR (MANTIDA) ---
+    # --- SIDEBAR (RESTAURADA) ---
     with st.sidebar:
         st.title("🔔 Notificações")
         hoje_dm = datetime.now().strftime("%d/%m")
@@ -87,7 +87,7 @@ else:
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Aniversários", "📢 Mural", "➕ Cadastrar", "✏️ Gerenciar"])
 
-    # --- TAB 1: MEMBROS (MAPA RESTAURADO) ---
+    # --- TAB 1: MEMBROS (MAPA E RECIPROCIDADE CORRIGIDOS) ---
     with tabs[0]:
         sel_ids = []
         c_topo = st.container()
@@ -100,18 +100,28 @@ else:
             with col_exp.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    # RECIPROCIDADE CÔNJUGE
+                    # LÓGICA DE CÔNJUGE "ESPELHO"
                     conj_bruto = str(r.get('conjuge','')).strip()
                     vinc_bruto = str(r.get('vinculo','')).strip()
-                    quem_me_citou = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
                     
                     parceiro = ""
-                    if conj_bruto.lower() not in ["", "nan", "false", "0", "none"]: parceiro = conj_bruto
-                    elif "Cônjuge de" in vinc_bruto: parceiro = vinc_bruto.replace("Cônjuge de", "").strip()
-                    elif quem_me_citou: parceiro = quem_me_citou[0]
+                    # 1. Verifica campo direto
+                    if conj_bruto.lower() not in ["", "nan", "false", "0", "none", "sim"]:
+                        parceiro = conj_bruto
+                    # 2. Verifica se o vínculo diz "Cônjuge de..."
+                    if not parceiro and "Cônjuge de" in vinc_bruto:
+                        parceiro = vinc_bruto.replace("Cônjuge de", "").strip()
+                    # 3. BUSCA RECÍPROCA (Se o André jaguar não tem cônjuge mas o Afonso de melo diz que André é dele)
+                    if not parceiro:
+                        recip_c = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
+                        recip_v = df_m[df_m['vinculo'].str.contains(f"Cônjuge de {nome_at}", case=False, na=False)]['nome'].tolist()
+                        if recip_c: parceiro = recip_c[0]
+                        elif recip_v: parceiro = recip_v[0]
 
-                    if parceiro and parceiro != nome_at: st.write(f"💍 **Cônjuge:** {parceiro}")
-                    else: st.write(f"**Cônjuge:** Nenhum")
+                    if parceiro and parceiro != nome_at:
+                        st.write(f"💍 **Cônjuge:** {parceiro}")
+                    else:
+                        st.write(f"**Cônjuge:** Nenhum")
                     
                     # PREFIXO FILHO(A) DE AUTOMÁTICO
                     vinc_final = vinc_bruto
@@ -122,21 +132,22 @@ else:
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})")
                     st.write(f"✉️ **E-mail:** {r.get('email','-')}")
                 with cl:
-                    # BOTÕES DE AÇÃO (MAPA VOLTOU!)
+                    # BOTÕES DE AÇÃO (GPS DE VOLTA)
                     t_c = limpar(r.get('telefone',''))
                     if len(t_c) >= 10:
                         st.link_button("💬 WhatsApp", f"https://wa.me/55{t_c}")
                         st.link_button("📞 Ligar", f"tel:{t_c}")
                     
-                    if r.get('rua'):
-                        endereco_full = f"{r['rua']}, {r['num']}, {r['bairro']}, {r['cep']}"
-                        st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(endereco_full)}")
+                    rua_val = str(r.get('rua','')).strip()
+                    if rua_val and rua_val.lower() not in ["", "nan"]:
+                        end_full = f"{rua_val}, {r.get('num','')}, {r.get('bairro','')}, {r.get('cep','')}"
+                        st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(end_full)}")
 
         if sel_ids:
             pdf_data = gerar_pdf(df_m.loc[sel_ids])
             c_topo.download_button("📥 BAIXAR PDF DOS SELECIONADOS", pdf_data, "familia_buscape.pdf")
 
-    # --- AS OUTRAS ABAS CONTINUAM IGUAIS (TRANCADAS) ---
+    # --- ABAS TRANCADAS (SEM ALTERAÇÃO) ---
     with tabs[1]:
         m_at = datetime.now().month
         st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
