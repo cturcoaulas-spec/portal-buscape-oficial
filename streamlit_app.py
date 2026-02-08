@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import re
+import time
 from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
@@ -37,9 +38,8 @@ def gerar_pdf(dados):
         pdf.set_font("Arial", "B", 11)
         pdf.cell(0, 8, f"Nome: {r.get('nome','-')}", ln=True)
         pdf.set_font("Arial", size=10)
-        pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {r.get('telefone','-')} | Email: {r.get('email','-')}", ln=True)
-        end = f"{r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} | CEP: {r.get('cep','-')}"
-        pdf.cell(0, 6, f"End: {end}", ln=True)
+        pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {r.get('telefone','-')}", ln=True)
+        pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} | CEP: {r.get('cep','-')}", ln=True)
         pdf.ln(4); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
     return pdf.output(dest='S').encode('latin-1')
 
@@ -85,14 +85,15 @@ else:
             col1, col2 = st.columns([0.2, 3.8])
             if col1.checkbox("", key=f"chk_{i}"): sel_ids.append(i)
             
-            # LÓGICA DO ÍCONE: Aliança ou X
-            is_conjuge = "💍" if r.get('conjuge','').strip() != "" or "Cônjuge" in r.get('ascendente','') else "❌"
-            nasc_texto = f"🎂 {r.get('nascimento','-')}" # O Bolo aqui!
-            
-            with col2.expander(f"{is_conjuge} {r.get('nome','-')} | {nasc_texto}"):
+            # O Título agora está limpo, apenas com o Bolo
+            with col2.expander(f"👤 {r.get('nome','-')} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    st.write(f"💍 **Cônjuge:** {r.get('conjuge','-')}")
+                    # LÓGICA DO ÍCONE NO CAMPO CÔNJUGE
+                    conj_val = r.get('conjuge','').strip()
+                    ico_conj = "💍" if conj_val != "" else "❌"
+                    st.write(f"{ico_conj} **Cônjuge:** {conj_val if conj_val else 'Nenhum'}")
+                    
                     st.write(f"📞 **Tel:** {r.get('telefone','-')} | 🌳 **Vínculo:** {r.get('ascendente','-')}")
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})")
                     st.write(f"✉️ **E-mail:** {r.get('email','-')}")
@@ -108,43 +109,6 @@ else:
         if sel_ids:
             pdf_b = gerar_pdf(df_m.loc[sel_ids])
             c_topo.download_button("📥 BAIXAR PDF SELECIONADOS", pdf_b, "familia.pdf")
-
-    # --- TAB 2: ANIVERSÁRIOS ---
-    with tabs[1]:
-        m_at = datetime.now().month
-        st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
-        any_niver = False
-        for _, r in df_m.iterrows():
-            dt = str(r.get('nascimento',''))
-            clean_dt = limpar(dt)
-            # Verifica mês se estiver em formato DD/MM/AAAA ou DDMMAAAA
-            if "/" in dt:
-                mes_n = int(dt.split('/')[1]) if len(dt.split('/')) > 1 else 0
-            elif len(clean_dt) == 8:
-                mes_n = int(clean_dt[2:4])
-            else: mes_n = 0
-            
-            if mes_n == m_at:
-                st.info(f"🎈 Dia {dt[:2]} - {r['nome']}")
-                any_niver = True
-        if not any_niver: st.write("Nenhum aniversariante este mês.")
-
-    # --- TAB 3: MURAL ---
-    with tabs[2]:
-        st.subheader("📢 Mural de Avisos")
-        avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
-        cols = st.columns(3)
-        for i in range(3): cols[i].warning(f"**Aviso {i+1}**\n\n{avs[i]}")
-        st.divider()
-        with st.form("mural_admin"):
-            v1, v2, v3 = st.text_input("Aviso 1", avs[0]), st.text_input("Aviso 2", avs[1]), st.text_input("Aviso 3", avs[2])
-            b_s, b_l = st.columns(2)
-            if b_s.form_submit_button("💾 Salvar Avisos"):
-                requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]})
-                st.success("Mural atualizado!"); st.rerun()
-            if b_l.form_submit_button("🗑️ Limpar Mural"):
-                requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","", "Vazio", "Vazio", "Vazio", "","",""]})
-                st.rerun()
 
     # --- TAB 4: CADASTRAR ---
     with tabs[3]:
@@ -172,7 +136,9 @@ else:
                     vinc = f"{v_c} {r_c}" if r_c != "Raiz" else "Raiz"
                     conj = r_c if "Cônjuge" in v_c else ""
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[n_c, fd, vinc, ft, m_c, ru_c, nu_c, conj, ba_c, ce_c]})
-                    st.success("✅ Cadastro realizado com sucesso!"); st.rerun()
+                    st.success("✅ Cadastro realizado com sucesso! Aguarde 2 segundos...")
+                    time.sleep(2) # Pausa para você ler a mensagem
+                    st.rerun()
 
     # --- TAB 5: GERENCIAR (ESPELHADO) ---
     with tabs[4]:
@@ -188,10 +154,8 @@ else:
                     e_n = st.text_input("Nome Completo *", value=m.get('nome',''), disabled=True)
                     e_d = st.text_input("Nascimento (DDMMAAAA) *", value=m.get('nascimento',''))
                     e_t = st.text_input("Telefone (DDD + Número)", value=m.get('telefone',''))
-                    # Lógica para pré-selecionar o tipo de vínculo
                     idx_vinc = 1 if "Cônjuge" in m.get('ascendente','') else 0
                     e_v_tipo = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True, index=idx_vinc)
-                    # Lógica para pré-selecionar a referência
                     ref_atual = m.get('ascendente','').split(' de ')[-1] if ' de ' in m.get('ascendente','') else "Raiz"
                     idx_ref = nomes_lista.index(ref_atual)+1 if ref_atual in nomes_lista else 0
                     e_ref = st.selectbox("Referência *", ["Raiz"] + nomes_lista, index=idx_ref)
@@ -209,7 +173,11 @@ else:
                         v_e = f"{e_v_tipo} {e_ref}" if e_ref != "Raiz" else "Raiz"
                         c_e = e_ref if "Cônjuge" in e_v_tipo else ""
                         requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[escolha, mask_data(e_d), v_e, mask_tel(e_t), e_m, e_ru, e_nu, c_e, e_ba, e_ce]})
-                        st.success("✅ Atualização realizada com sucesso!"); st.rerun()
+                        st.success("✅ Atualização realizada com sucesso! Aguarde...")
+                        time.sleep(2)
+                        st.rerun()
                 if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[""]*10})
-                    st.success("🗑️ Membro removido com sucesso!"); st.rerun()
+                    st.success("🗑️ Membro removido com sucesso!")
+                    time.sleep(2)
+                    st.rerun()
