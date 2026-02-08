@@ -36,7 +36,6 @@ def mask_tel(v):
     if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
     return n if n else "-"
 
-# FUNÇÃO: GERAR PDF DOS MEMBROS SELECIONADOS
 def gerar_pdf_membros(dados):
     pdf = FPDF()
     pdf.add_page()
@@ -49,9 +48,7 @@ def gerar_pdf_membros(dados):
         pdf.set_font("Arial", size=10)
         pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {mask_tel(r.get('telefone','-'))}", ln=True)
         pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}", ln=True)
-        pdf.ln(2)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(4)
+        pdf.ln(2); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
     return pdf.output(dest='S').encode('latin-1')
 
 # --- CARREGAMENTO RESILIENTE ---
@@ -104,13 +101,12 @@ else:
         st.title("🌳 Família Buscapé")
         tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
-        with tabs[0]: # 1. Membros (RESTAURADO: Seleção e Botão PDF)
+        with tabs[0]: # 1. Membros (SEM LINHAS DE AVISO)
             sel_ids = []
             c_topo = st.container()
             
             for i, r in df_m.iterrows():
                 col_sel, col_exp = st.columns([0.15, 3.85])
-                # Checkbox para selecionar membro
                 if col_sel.checkbox("", key=f"sel_{i}"):
                     sel_ids.append(i)
                 
@@ -128,7 +124,6 @@ else:
                             endereco_full = f"{end_rua}, {r.get('num','')}, {r.get('bairro','')}"
                             st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(endereco_full)}")
             
-            # Botão de download só aparece se houver seleção
             if sel_ids:
                 c_topo.download_button(
                     label="📥 BAIXAR PDF DOS SELECIONADOS",
@@ -199,7 +194,7 @@ else:
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
                             st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (MANTEVE: Cônjuge com cor e label)
+        with tabs[5]: # 6. Árvore (MANTEVE: Cônjuge com cor amarela)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -217,4 +212,4 @@ else:
 
         with tabs[6]: # 7. Manual
             st.markdown("### 📖 Guia do Usuário")
-            st.info("Senha: **buscape2026**")
+            st.info("Senha da Família: **buscape2026**")
