@@ -38,17 +38,6 @@ def mask_data(v):
     if len(n) == 8: return f"{n[:2]}/{n[2:4]}/{n[4:8]}"
     return v
 
-def gerar_pdf_membros(dados):
-    pdf = FPDF()
-    pdf.add_page(); pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, "Relatorio Familia Buscape", ln=True, align="C")
-    for _, r in dados.iterrows():
-        pdf.set_font("Arial", "B", 11); pdf.cell(0, 8, f"Nome: {r.get('nome','-')}", ln=True)
-        pdf.set_font("Arial", size=10); pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {mask_tel(r.get('telefone','-'))}", ln=True)
-        pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} ({r.get('cep','-')})", ln=True)
-        pdf.ln(4); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
-    return pdf.output(dest='S').encode('latin-1')
-
 # --- LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
@@ -85,19 +74,43 @@ else:
         st.divider()
         if st.button("📄 Gerar Manual Completo (PDF)"):
             pdf_m = FPDF(); pdf_m.add_page()
-            
-            # Título e Boas-Vindas
             pdf_m.set_font("Arial", "B", 16)
             pdf_m.cell(200, 10, "Guia do Portal Familia Buscape", ln=True, align="C")
             pdf_m.ln(10)
             pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Sejam Bem-Vindos!", ln=True)
             pdf_m.set_font("Arial", "", 11)
-            pdf_m.multi_cell(0, 7, "Este portal foi criado pela Valeria para unir ainda mais a nossa familia. Aqui podemos compartilhar informacoes e manter nossa historia viva e organizada.")
-            
-            # Responsabilidade
-            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Responsabilidade e Importancia dos Dados", ln=True)
+            pdf_m.multi_cell(0, 7, "Este portal foi criado pela Valeria para unir ainda mais a nossa familia. Aqui podemos compartilhar informacoes e manter nossa historia viva.")
+            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Responsabilidade e Dados", ln=True)
             pdf_m.set_font("Arial", "", 11)
-            pdf_m.multi_cell(0, 7, "IMPORTANTE: Este e um sistema compartilhado. Tudo o que voce edita ou apaga, muda para TODOS os familiares. Use com carinho. Mantenha seu Telefone, Endereco e Nascimento sempre atualizados. Sem isso, nao conseguiremos enviar avisos de aniversarios ou abrir o GPS para visitas!")
+            pdf_m.multi_cell(0, 7, "IMPORTANTE: Este sistema e compartilhado. O que voce edita ou apaga, muda para TODOS. Use com carinho. Mantenha seu Telefone e Endereco atualizados.")
+            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Funcionalidades", ln=True)
+            pdf_m.set_font("Arial", "", 11)
+            pdf_m.multi_cell(0, 7, "- Membros: Contatos, WhatsApp e Google Maps.\n- Niver: Aniversariantes do mes.\n- Mural: Avisos da familia.\n- Arvore: Fluxograma visual.")
+            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Instalar no Celular", ln=True)
+            pdf_m.set_font("Arial", "", 11)
+            pdf_m.multi_cell(0, 7, "Android: No Chrome, use 'Instalar aplicativo'.\niPhone: No Safari, use 'Adicionar a Tela de Inicio'.")
+            pdf_m.ln(10); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "SENHA: buscape2026", ln=True, align="C")
+            manual_out = pdf_m.output(dest='S').encode('latin-1')
+            st.download_button("📥 BAIXAR MANUAL", manual_out, "Manual_Buscape.pdf")
             
-            # Funcionalidades
-            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Funcionalidades do
+        st.divider(); st.button("🚪 Sair", on_click=lambda: st.session_state.update({"logado": False}))
+
+    st.title("🌳 Família Buscapé")
+    tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore"])
+
+    with tabs[0]: # Membros
+        for i, r in df_m.iterrows():
+            nome_at = r.get('nome','').strip()
+            with st.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
+                ci, cl = st.columns([3, 1])
+                with ci:
+                    conj_b = str(r.get('conjuge','')).strip(); vinc_b = str(r.get('vinculo','')).strip(); parc = ""
+                    if conj_b.lower() not in ["", "nan", "false", "0", "none", "sim"]: parc = conj_b
+                    elif "Cônjuge de" in vinc_b: parc = vinc_b.replace("Cônjuge de", "").strip()
+                    else:
+                        recip = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
+                        if recip: parc = recip[0]
+                    if parc and parc != nome_at: st.write(f"💍 **Cônjuge:** {parc}")
+                    else: st.write("**Cônjuge:** Nenhum")
+                    vinc_f = vinc_b
+                    if vinc_b and vinc_b != "Raiz" and "Cônjuge" not in
