@@ -8,13 +8,13 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (TOTALMENTE TRANCADA)
+# 1. CONFIGURAÇÃO MOBILE E ESTILO (BLINDADO)
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
 st.markdown("""
     <style>
-    [data-baseweb="tab-list"] { gap: 10px; overflow-x: auto; }
-    [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 120px; }
+    [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
+    [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
     .stExpander { border-radius: 12px !important; border: 1px solid #ddd !important; }
     </style>
@@ -22,27 +22,23 @@ st.markdown("""
 
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJjlcMpJoxoO05lilysWJaj_udqeXqvfYFgzvWPlC-Omw/exec"
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
-
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES (MÁSCARA BLINDADA PARA NÚMEROS GIGANTES) ---
+# --- FUNÇÕES DE SUPORTE ---
 def limpar(v): return re.sub(r'\D', '', str(v))
 
 def mask_tel(v):
-    n = limpar(str(v))
-    if not n: return "-"
-    # Se for um número gigante (como o do Fulaninho), limita a 11 para não quebrar o layout
-    n_limpo = n[:11]
-    if len(n_limpo) == 11: return f"({n_limpo[:2]}) {n_limpo[2:7]}-{n_limpo[7:11]}"
-    if len(n_limpo) == 10: return f"({n_limpo[:2]}) {n_limpo[2:6]}-{n_limpo[6:10]}"
-    return n_limpo
+    n = limpar(str(v))[:11]
+    if len(n) == 11: return f"({n[:2]}) {n[2:7]}-{n[7:11]}"
+    if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
+    return n if n else "-"
 
 def mask_data(v):
     n = limpar(str(v))
     if len(n) == 8: return f"{n[:2]}/{n[2:4]}/{n[4:8]}"
     return v
 
-def gerar_pdf(dados):
+def gerar_pdf_membros(dados):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", "B", 14)
     pdf.cell(200, 10, "Relatorio Familia Buscape", ln=True, align="C")
@@ -57,10 +53,11 @@ def gerar_pdf(dados):
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
-    psw = st.text_input("Senha", type="password")
-    if st.button("ENTRAR"):
+    st.info("Digite a senha da família para entrar:")
+    psw = st.text_input("Senha de Acesso", type="password")
+    if st.button("ENTRAR NO PORTAL"):
         if psw == "buscape2026": st.session_state.logado = True; st.rerun()
-        else: st.error("Senha incorreta")
+        else: st.error("Senha incorreta! Peça a senha para a Valéria.")
 else:
     @st.cache_data(ttl=2)
     def carregar():
@@ -70,7 +67,7 @@ else:
                 t = t.strip().lower()
                 return "".join(ch for ch in unicodedata.normalize('NFKD', t) if not unicodedata.combining(ch))
             df.columns = [norm(c) for c in df.columns]
-            mapa = {'nome':'nome','nascimento':'nascimento','vinculo':'vinculo','ascendente':'vinculo','telefone':'telefone','email':'email','rua':'rua','num':'num','numero':'num','conjuge':'conjuge', 'conjugue':'conjuge', 'bairro':'bairro','cep':'cep'}
+            mapa = {'nome':'nome','nascimento':'nascimento','vinculo':'vinculo','ascendente':'vinculo','telefone':'telefone','email':'email','rua':'rua','num':'num','numero':'num','conjuge':'conjuge','conjugue':'conjuge','bairro':'bairro','cep':'cep'}
             return df.rename(columns=mapa)
         except: return pd.DataFrame()
 
@@ -83,14 +80,27 @@ else:
         niver_hoje = [r['nome'] for _, r in df_m.iterrows() if str(r.get('nascimento','')).startswith(hoje_dm)]
         if niver_hoje:
             for n in niver_hoje: st.success(f"🎂 Hoje: {n}")
-        else: st.info("Sem notificações hoje")
+        else: st.info("Sem aniversários hoje")
+        
+        # --- BOTÃO DO MANUAL (DENTRO DA SIDEBAR) ---
+        st.divider()
+        if st.button("📄 Gerar Guia de Uso (PDF)"):
+            pdf_m = FPDF(); pdf_m.add_page()
+            pdf_m.set_font("Arial", "B", 16); pdf_m.cell(200, 10, "Manual Familia Buscape", ln=True, align="C"); pdf_m.ln(10)
+            pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "1. Responsabilidade Coletiva", ln=True)
+            pdf_m.set_font("Arial", "", 11); pdf_m.multi_cell(0, 7, "Este e um espaco da Familia Buscape. O que voce edita ou apaga muda para todos. Use com carinho e mantenha seus dados (telefone, endereco e nascimento) sempre atualizados para facilitar nossos encontros!")
+            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "2. Como Instalar no Celular", ln=True)
+            pdf_m.set_font("Arial", "", 11); pdf_m.multi_cell(0, 7, "Android: No Chrome, clique nos 3 pontinhos e 'Instalar aplicativo'.\niPhone: No Safari, clique no icone de partilhar e 'Adicionar a Tela de Inicio'.")
+            pdf_m.ln(10); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, f"SENHA DE ACESSO: buscape2026", ln=True, align="C")
+            manual_out = pdf_m.output(dest='S').encode('latin-1')
+            st.download_button("📥 BAIXAR MANUAL AGORA", manual_out, "Manual_Buscape.pdf")
+            
         st.divider(); st.button("🚪 Sair", on_click=lambda: st.session_state.update({"logado": False}))
 
     st.title("🌳 Família Buscapé")
-    tabs = st.tabs(["🔍 Membros", "🎂 Aniversários", "📢 Mural", "➕ Cadastrar", "✏️ Gerenciar", "🌳 Árvore"])
+    tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore"])
 
-    # --- TAB 1: MEMBROS (CORREÇÃO DE RECIPROCIDADE E MÁSCARA) ---
-    with tabs[0]:
+    with tabs[0]: # Membros
         sel_ids = []; c_topo = st.container()
         for i, r in df_m.iterrows():
             col_sel, col_exp = st.columns([0.2, 3.8])
@@ -99,40 +109,25 @@ else:
             with col_exp.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    # LÓGICA DE CÔNJUGE ÚNICO (RECIPROCIDADE FORÇADA)
-                    conj_b = str(r.get('conjuge','')).strip()
-                    vinc_b = str(r.get('vinculo','')).strip()
-                    
-                    # Procura quem chamou este membro de cônjuge no banco todo
-                    quem_me_citou = df_m[(df_m['conjuge'].str.strip() == nome_at) | (df_m['vinculo'].str.contains(f"Cônjuge de {nome_at}", case=False, na=False))]['nome'].tolist()
-                    
-                    parceiro = ""
-                    if conj_b.lower() not in ["", "nan", "false", "0", "none", "sim"]: parceiro = conj_b
-                    elif "Cônjuge de" in vinc_b: parceiro = vinc_b.replace("Cônjuge de", "").strip()
-                    elif quem_me_citou: parceiro = quem_me_citou[0]
-
-                    if parceiro and parceiro != nome_at: st.write(f"💍 **Cônjuge:** {parceiro}")
-                    else: st.write(f"**Cônjuge:** Nenhum")
-                    
-                    # VÍNCULO (EVITA DUPLICIDADE COM O CÔNJUGE)
+                    conj_b = str(r.get('conjuge','')).strip(); vinc_b = str(r.get('vinculo','')).strip(); parc = ""
+                    if conj_b.lower() not in ["", "nan", "false", "0", "sim"]: parc = conj_b
+                    elif "Cônjuge de" in vinc_b: parc = vinc_b.replace("Cônjuge de", "").strip()
+                    else:
+                        recip = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
+                        if recip: parc = recip[0]
+                    if parc and parc != nome_at: st.write(f"💍 **Cônjuge:** {parc}")
+                    else: st.write("**Cônjuge:** Nenhum")
                     vinc_f = vinc_b
                     if vinc_b and vinc_b != "Raiz" and "Cônjuge" not in vinc_b and "Filho" not in vinc_b:
                         vinc_f = f"Filho(a) de {vinc_b}"
-                    
-                    if "Cônjuge" in vinc_f: # Se já mostrou a aliança acima, não repete aqui
-                        st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))}")
-                    else:
-                        st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))} | 🌳 **Vínculo:** {vinc_f}")
-                    
+                    st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))} | 🌳 **Vínculo:** {vinc_f}")
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} ({r.get('cep','-')})")
                 with cl:
                     t_c = limpar(r.get('telefone',''))
-                    if len(t_c) >= 10:
-                        st.link_button("💬 Zap", f"https://wa.me/55{t_c}"); st.link_button("📞 Ligar", f"tel:{t_c}")
+                    if len(t_c) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{t_c}"); st.link_button("📞 Ligar", f"tel:{t_c}")
                     if r.get('rua'): st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{r.get('rua','')},{r.get('num','')},{r.get('cep','')}')}")
-        if sel_ids: c_topo.download_button("📥 PDF", gerar_pdf(df_m.loc[sel_ids]), "familia.pdf")
+        if sel_ids: c_topo.download_button("📥 PDF SELECIONADOS", gerar_pdf_membros(df_m.loc[sel_ids]), "familia.pdf")
 
-    # --- TABS 2 e 3 (TRANCADAS) ---
     with tabs[1]: # Aniversários
         m_at = datetime.now().month; st.subheader(f"🎂 {MESES_BR[m_at]}")
         for _, r in df_m.iterrows():
@@ -150,7 +145,6 @@ else:
             if b_s.form_submit_button("💾 SALVAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]}); st.rerun()
             if b_l.form_submit_button("🗑️ LIMPAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]}); st.rerun()
 
-    # --- TABS 4 e 5 (TRANCADAS) ---
     with tabs[3]: # Cadastrar
         with st.form("c_f", clear_on_submit=True):
             ca, cb = st.columns(2)
