@@ -8,7 +8,7 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO E CSS MOBILE
+# 1. CONFIGURAÇÃO E CSS MOBILE (TRANCADO)
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
 st.markdown("""
@@ -25,24 +25,27 @@ CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb
 
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES DE SUPORTE (FIX: MÁSCARA APLICADA) ---
 def limpar(v): return re.sub(r'\D', '', str(v))
+
 def mask_tel(v):
     n = limpar(v)
     if len(n) == 11: return f"({n[:2]}) {n[2:7]}-{n[7:11]}"
     if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
     return v
+
 def mask_data(v):
     n = limpar(v)
     if len(n) == 8: return f"{n[:2]}/{n[2:4]}/{n[4:8]}"
     return v
+
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", "B", 14)
     pdf.cell(200, 10, "Relatorio Familia Buscape", ln=True, align="C")
     for _, r in dados.iterrows():
         pdf.set_font("Arial", "B", 11); pdf.cell(0, 8, f"Nome: {r.get('nome','-')}", ln=True)
-        pdf.set_font("Arial", size=10); pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {r.get('telefone','-')}", ln=True)
+        pdf.set_font("Arial", size=10); pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {mask_tel(r.get('telefone','-'))}", ln=True)
         end = f"{r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})"
         pdf.cell(0, 6, f"End: {end}", ln=True); pdf.ln(4); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
     return pdf.output(dest='S').encode('latin-1')
@@ -84,7 +87,7 @@ else:
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Aniversários", "📢 Mural", "➕ Cadastrar", "✏️ Gerenciar", "🌳 Árvore"])
 
-    # --- TAB 1: MEMBROS (TRANCADA) ---
+    # --- TAB 1: MEMBROS (CORREÇÃO DE DUPLICIDADE E TELEFONE) ---
     with tabs[0]:
         sel_ids = []; c_topo = st.container()
         for i, r in df_m.iterrows():
@@ -94,20 +97,26 @@ else:
             with col_exp.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
+                    # FIX: Lógica de Cônjuge Único (Pega o primeiro que encontrar e para)
                     conj_bruto = str(r.get('conjuge','')).strip()
                     vinc_bruto = str(r.get('vinculo','')).strip()
                     parceiro = ""
                     if conj_bruto.lower() not in ["", "nan", "false", "0", "none"]: parceiro = conj_bruto
-                    if not parceiro and "Cônjuge de" in vinc_bruto: parceiro = vinc_bruto.replace("Cônjuge de", "").strip()
-                    if not parceiro:
-                        recip = df_m[(df_m['conjuge'].str.strip() == nome_at) | (df_m['vinculo'].str.contains(f"Cônjuge de {nome_at}", case=False, na=False))]['nome'].tolist()
+                    elif "Cônjuge de" in vinc_bruto: parceiro = vinc_bruto.replace("Cônjuge de", "").strip()
+                    else:
+                        recip = df_m[(df_m['conjuge'].str.strip() == nome_at)]['nome'].tolist()
                         if recip: parceiro = recip[0]
+                    
                     if parceiro and parceiro != nome_at: st.write(f"💍 **Cônjuge:** {parceiro}")
                     else: st.write(f"**Cônjuge:** Nenhum")
+                    
+                    # VÍNCULO AUTOMÁTICO
                     vinc_f = vinc_bruto
                     if vinc_bruto and vinc_bruto != "Raiz" and "Cônjuge" not in vinc_bruto and "Filho" not in vinc_bruto:
                         vinc_f = f"Filho(a) de {vinc_bruto}"
-                    st.write(f"📞 **Tel:** {r.get('telefone','-')} | 🌳 **Vínculo:** {vinc_f}")
+                    
+                    # FIX: Máscara de Telefone aplicada no st.write
+                    st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))} | 🌳 **Vínculo:** {vinc_f}")
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})")
                 with cl:
                     t_c = limpar(r.get('telefone',''))
@@ -118,14 +127,14 @@ else:
                         st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{rua_v},{r.get('num','')},{r.get('cep','')}')}")
         if sel_ids: c_topo.download_button("📥 PDF SELECIONADOS", gerar_pdf(df_m.loc[sel_ids]), "familia.pdf")
 
-    # --- TAB 2: ANIVERSÁRIOS (TRANCADA) ---
+    # --- TAB 2: ANIVERSÁRIOS ---
     with tabs[1]:
         m_at = datetime.now().month; st.subheader(f"🎂 {MESES_BR[m_at]}")
         for _, r in df_m.iterrows():
             dt = str(r.get('nascimento',''))
             if "/" in dt and int(dt.split('/')[1]) == m_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
 
-    # --- TAB 3: MURAL (RESTAURADA COM LIMPAR) ---
+    # --- TAB 3: MURAL (COM BOTÃO LIMPAR) ---
     with tabs[2]:
         st.subheader("📢 Mural de Avisos")
         try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
@@ -143,7 +152,7 @@ else:
                 requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]})
                 st.success("🗑️ MURAL LIMPO!"); time.sleep(1); st.rerun()
 
-    # --- TAB 4: CADASTRAR (TRANCADA) ---
+    # --- TAB 4: CADASTRAR ---
     with tabs[3]:
         with st.form("c_f", clear_on_submit=True):
             ca, cb = st.columns(2)
@@ -158,7 +167,7 @@ else:
                     v_fin = f"{vc} {rc}" if rc!="Raiz" else "Raiz"
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, mask_data(dc), v_fin, mask_tel(tc), mc, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]}); st.rerun()
 
-    # --- TAB 5: GERENCIAR (TRANCADA COM EXCLUIR) ---
+    # --- TAB 5: GERENCIAR (COM BOTÃO EXCLUIR) ---
     with tabs[4]:
         esc = st.selectbox("Editar", ["--"] + nomes_lista)
         if esc != "--":
@@ -177,7 +186,7 @@ else:
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
                     st.success("🗑️ EXCLUÍDO!"); time.sleep(1); st.rerun()
 
-    # --- TAB 6: ÁRVORE (TRANCADA) ---
+    # --- TAB 6: ÁRVORE ---
     with tabs[5]:
         st.subheader("🌳 Organograma da Família")
         dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial", fontsize=10]; edge [color="#546E7A"];'
