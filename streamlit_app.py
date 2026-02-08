@@ -8,7 +8,7 @@ from datetime import datetime
 # CONFIGURAÇÃO
 st.set_page_config(page_title="Portal Família Buscapé", page_icon="🌳", layout="wide")
 
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJjlcMpJoxoO05lilysWJaj_udqeXqvfYFgzvWPlC-Omw/exec"
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzDd11VRMTQSvd3MDNZgok8qV4o_y4s0KhBaAJQFC0HZtg36mpydMTVmPQXg34lZp_RCQ/exec"
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 
 # --- FUNÇÕES ---
@@ -71,7 +71,7 @@ else:
                             st.link_button("💬 WhatsApp", f"https://wa.me/55{tel_puro}")
                             st.link_button("📞 Ligar", f"tel:+55{tel_puro}")
 
-    # --- TAB 2: AGENDA (ANIVERSARIANTES) ---
+    # --- TAB 2: AGENDA ---
     with t2:
         st.subheader("🎂 Aniversariantes do Mês")
         mes_atual = datetime.now().strftime("%m")
@@ -109,24 +109,4 @@ else:
                 if f_nome:
                     dados = [f_nome, aplicar_mascara_data(f_nasc), f_asc, aplicar_mascara_tel(f_tel), f_mail, f_rua, f_num, "", f_bair, f_cep]
                     requests.post(WEBAPP_URL, json={"action": "append", "data": dados})
-                    st.success("✅ Salvo!")
-                    st.rerun()
-
-    # --- TAB 4: EDITAR ---
-    with t4:
-        st.subheader("Gerenciar Dados")
-        if lista_nomes:
-            sel = st.selectbox("Selecione o membro para alterar", lista_nomes)
-            p = df[df['nome'] == sel].iloc[0]
-            idx = df.index[df['nome'] == sel].tolist()[0] + 2
-            
-            with st.form("form_edit"):
-                c1, c2 = st.columns(2)
-                with c1:
-                    e_nasc = st.text_input("Nascimento", value=p.get('nascimento',''))
-                    lista_asc = ["Raiz"] + [n for n in lista_nomes if n != sel]
-                    asc_atual = p.get('ascendente','Raiz')
-                    idx_asc = lista_asc.index(asc_atual) if asc_atual in lista_asc else 0
-                    e_asc = st.selectbox("Ascendente", lista_asc, index=idx_asc)
-                    e_tel = st.text_input("Telefone", value=p.get('telefone',''))
-                    e_mail =
+                    st.success("✅
