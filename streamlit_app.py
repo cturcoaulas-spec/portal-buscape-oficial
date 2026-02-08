@@ -8,7 +8,7 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO E CSS MOBILE (BOTÕES GRANDES)
+# 1. CONFIGURAÇÃO E CSS MOBILE (TRANCADO)
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
 st.markdown("""
@@ -84,7 +84,7 @@ else:
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Aniversários", "📢 Mural", "➕ Cadastrar", "✏️ Gerenciar", "🌳 Árvore"])
 
-    # --- TAB 1: MEMBROS (PROGRAMAÇÃO V28 RESTAURADA) ---
+    # --- TAB 1: MEMBROS (TRANCADA) ---
     with tabs[0]:
         sel_ids = []; c_topo = st.container()
         for i, r in df_m.iterrows():
@@ -94,7 +94,6 @@ else:
             with col_exp.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    # RECIPROCIDADE CÔNJUGE (LÓGICA V28)
                     conj_bruto = str(r.get('conjuge','')).strip()
                     vinc_bruto = str(r.get('vinculo','')).strip()
                     parceiro = ""
@@ -103,11 +102,8 @@ else:
                     if not parceiro:
                         recip = df_m[(df_m['conjuge'].str.strip() == nome_at) | (df_m['vinculo'].str.contains(f"Cônjuge de {nome_at}", case=False, na=False))]['nome'].tolist()
                         if recip: parceiro = recip[0]
-                    
                     if parceiro and parceiro != nome_at: st.write(f"💍 **Cônjuge:** {parceiro}")
                     else: st.write(f"**Cônjuge:** Nenhum")
-                    
-                    # VÍNCULO AUTOMÁTICO
                     vinc_f = vinc_bruto
                     if vinc_bruto and vinc_bruto != "Raiz" and "Cônjuge" not in vinc_bruto and "Filho" not in vinc_bruto:
                         vinc_f = f"Filho(a) de {vinc_bruto}"
@@ -123,7 +119,7 @@ else:
                         st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(end_f)}")
         if sel_ids: c_topo.download_button("📥 PDF SELECIONADOS", gerar_pdf(df_m.loc[sel_ids]), "familia.pdf")
 
-    # --- TABS 2, 3, 4 e 5 (PROGRAMAÇÃO V28 RESTAURADA E TRANCADA) ---
+    # --- TABS 1, 2 e 3 (TRANCADAS) ---
     with tabs[1]: # Aniversários
         m_at = datetime.now().month; st.subheader(f"🎂 {MESES_BR[m_at]}")
         for _, r in df_m.iterrows():
@@ -142,21 +138,33 @@ else:
     with tabs[3]: # Cadastrar
         with st.form("c_f", clear_on_submit=True):
             ca, cb = st.columns(2)
-            with ca: nc, dc, tc = st.text_input("Nome *"), st.text_input("Nasc *"), st.text_input("Tel"); vc = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True); rc = st.selectbox("Ref *", ["Raiz"] + nomes_lista)
+            with ca: nc, dc, tc = st.text_input("Nome Completo *"), st.text_input("Nasc (DDMMAAAA) *"), st.text_input("Telefone")
             with cb: mc, ru, nu = st.text_input("Email"), st.text_input("Rua"), st.text_input("Nº"); ba, ce = st.text_input("Bairro"), st.text_input("CEP")
+            vc = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True)
+            rc = st.selectbox("Referência *", ["Raiz"] + nomes_lista)
             if st.form_submit_button("💾 SALVAR"): requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, mask_data(dc), f"{vc} {rc}" if rc!="Raiz" else "Raiz", mask_tel(tc), mc, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]}); st.rerun()
 
-    with tabs[4]: # Gerenciar
+    # --- TAB 4: GERENCIAR (RESTAURADA COM EXCLUSÃO) ---
+    with tabs[4]:
         esc = st.selectbox("Editar", ["--"] + nomes_lista)
         if esc != "--":
             m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
             with st.form("g_f"):
                 c1, c2 = st.columns(2)
-                with c1: st.text_input("Nome", value=esc, disabled=True); ed, et = st.text_input("Nasc", m['nascimento']), st.text_input("Tel", m['telefone']); ev = st.radio("Tipo", ["Filho(a) de", "Cônjuge de"], index=1 if "Cônjuge" in m['vinculo'] else 0); er = st.selectbox("Ref", ["Raiz"] + nomes_lista)
+                with c1: st.text_input("Nome", value=esc, disabled=True); ed, et = st.text_input("Nasc", m['nascimento']), st.text_input("Tel", m['telefone'])
                 with c2: em, ru, nu = st.text_input("Email", m['email']), st.text_input("Rua", m['rua']), st.text_input("Nº", m['num']); ba, ce = st.text_input("Bairro", m['bairro']), st.text_input("CEP", m['cep'])
-                if st.form_submit_button("💾 ATUALIZAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, mask_data(ed), f"{ev} {er}", mask_tel(et), em, ru, nu, er if "Cônjuge" in ev else "", ba, ce]}); st.rerun()
+                ev = st.radio("Tipo", ["Filho(a) de", "Cônjuge de"], index=1 if "Cônjuge" in m.get('vinculo','') else 0)
+                er = st.selectbox("Ref", ["Raiz"] + nomes_lista)
+                
+                b_att, b_exc = st.columns(2)
+                if b_att.form_submit_button("💾 ATUALIZAR"):
+                    requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, mask_data(ed), f"{ev} {er}", mask_tel(et), em, ru, nu, er if "Cônjuge" in ev else "", ba, ce]})
+                    st.success("✅ ATUALIZADO!"); time.sleep(1); st.rerun()
+                if b_exc.form_submit_button("🗑️ EXCLUIR"):
+                    requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
+                    st.success("🗑️ EXCLUÍDO!"); time.sleep(1); st.rerun()
 
-    # --- TAB 6: ÁRVORE (FLUXOGRAMA SÓ NOMES) ---
+    # --- TAB 5: ÁRVORE (TRANCADA) ---
     with tabs[5]:
         st.subheader("🌳 Organograma da Família")
         dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial", fontsize=10]; edge [color="#546E7A"];'
