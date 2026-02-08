@@ -25,23 +25,24 @@ if not st.session_state.logado:
 else:
     def carregar_dados():
         try:
+            # Lendo com cache para evitar lentidão
             df = pd.read_csv(CSV_URL, dtype=str).fillna("")
             df.columns = [c.strip().lower() for c in df.columns]
             return df
         except:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=["nome", "nascimento", "ascendente", "telefone", "email", "rua", "num", "comp", "bairro", "cep"])
 
     df = carregar_dados()
+    # Criamos a lista de nomes para a rolagem (selectbox)
+    lista_nomes = sorted(df['nome'].unique().tolist()) if not df.empty else []
+    opcoes_rolagem = ["Raiz"] + lista_nomes
 
-    st.title("🌳 Portal Buscapé")
-    aba1, aba2, aba3 = st.tabs(["🔍 Consultar", "➕ Cadastrar", "✏️ Editar"])
+    st.title("🌳 Portal Família Buscapé")
+    aba1, aba2, aba3 = st.tabs(["🔍 Consultar", "➕ Novo Cadastro", "✏️ Editar"])
 
     with aba1:
         st.subheader("Lista da Família")
-        if not df.empty:
-            st.dataframe(df, use_container_width=True, hide_index=True)
-        else:
-            st.info("Aguardando dados da nuvem...")
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
     with aba2:
         st.subheader("Novo Cadastro")
@@ -50,8 +51,8 @@ else:
             with c1:
                 nome = st.text_input("Nome Completo")
                 nasc = st.text_input("Nascimento")
-                opcoes_asc = ["Raiz"] + sorted(df['nome'].unique().tolist()) if not df.empty else ["Raiz"]
-                asc = st.selectbox("Ascendente", opcoes_asc)
+                # AQUI VOLTOU A JANELA DE ROLAGEM:
+                asc = st.selectbox("Ascendente (Pai/Mãe)", opcoes_rolagem)
                 tel = st.text_input("Telefone")
                 mail = st.text_input("E-mail")
             with c2:
@@ -65,13 +66,13 @@ else:
                 if nome:
                     dados = [nome, nasc, asc, tel, mail, rua, num, comp, bairro, cep]
                     requests.post(WEBAPP_URL, json={"action": "append", "data": dados})
-                    st.success(f"{nome} adicionado com sucesso!")
+                    st.success(f"{nome} foi adicionado!")
                     st.rerun()
 
     with aba3:
         st.subheader("Editar Cadastro")
         if not df.empty:
-            nome_sel = st.selectbox("Escolha quem editar", sorted(df['nome'].tolist()))
+            nome_sel = st.selectbox("Quem você quer editar?", lista_nomes)
             pessoa = df[df['nome'] == nome_sel].iloc[0]
             idx = df.index[df['nome'] == nome_sel].tolist()[0] + 2
 
@@ -79,7 +80,14 @@ else:
                 col1, col2 = st.columns(2)
                 with col1:
                     ed_nasc = st.text_input("Nascimento", value=pessoa.get('nascimento', ''))
-                    ed_asc = st.text_input("Ascendente", value=pessoa.get('ascendente', ''))
+                    # AQUI TAMBÉM VOLTOU A ROLAGEM NA EDIÇÃO:
+                    # Tentamos encontrar a posição atual do ascendente na lista
+                    try:
+                        index_atual = opcoes_rolagem.index(pessoa.get('ascendente', 'Raiz'))
+                    except:
+                        index_atual = 0
+                    ed_asc = st.selectbox("Ascendente", opcoes_rolagem, index=index_atual)
+                    
                     ed_tel = st.text_input("Telefone", value=pessoa.get('telefone', ''))
                     ed_mail = st.text_input("E-mail", value=pessoa.get('email', ''))
                 with col2:
