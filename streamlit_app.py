@@ -3,11 +3,12 @@ import pandas as pd
 import requests
 import re
 import unicodedata
+import time
 from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO MOBILE E ESTILO
+# 1. CONFIGURAÇÃO MOBILE E ESTILO (BLINDADO)
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
 st.markdown("""
@@ -85,7 +86,6 @@ else:
         if st.button("📄 Gerar Guia de Uso (PDF)"):
             pdf_m = FPDF(); pdf_m.add_page()
             pdf_m.set_font("Arial", "B", 16); pdf_m.cell(200, 10, "Manual Familia Buscape", ln=True, align="C"); pdf_m.ln(10)
-            
             sections = [
                 ("1. Boas-vindas!", "Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao."),
                 ("2. O que sao as Abas?", "Membros: Nossa agenda viva.\nNiver: Onde celebramos a vida a cada mes.\nMural: Nosso quadro de avisos coletivo.\nNovo: Para a familia crescer.\nGerenciar: Para manter tudo organizado.\nArvore: Onde vemos quem somos e de onde viemos."),
@@ -93,11 +93,9 @@ else:
                 ("4. Responsabilidade", "Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho!"),
                 ("5. No seu Telemovel", "Android: No Chrome, clique nos 3 pontinhos e 'Adicionar a tela inicial'.\niPhone: No Safari, clique no icone de partilhar e 'Adicionar a Tela de Inicio'.")
             ]
-            
             for title, body in sections:
                 pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, title, ln=True)
                 pdf_m.set_font("Arial", "", 11); pdf_m.multi_cell(0, 7, body); pdf_m.ln(4)
-
             pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "SENHA DE ACESSO: buscape2026", ln=True, align="C")
             manual_out = pdf_m.output(dest='S').encode('latin-1')
             st.download_button("📥 BAIXAR MANUAL ATUALIZADO", manual_out, "Manual_Buscape.pdf")
@@ -107,7 +105,7 @@ else:
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
-    with tabs[0]: # Membros
+    with tabs[0]: # 1. Membros
         sel_ids = []; c_topo = st.container()
         for i, r in df_m.iterrows():
             col_sel, col_exp = st.columns([0.2, 3.8])
@@ -135,13 +133,13 @@ else:
                     if r.get('rua'): st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{r.get('rua','')},{r.get('num','')},{r.get('cep','')}')}")
         if sel_ids: c_topo.download_button("📥 PDF SELECIONADOS", gerar_pdf_membros(df_m.loc[sel_ids]), "familia.pdf")
 
-    with tabs[1]: # Aniversários
+    with tabs[1]: # 2. Aniversários
         m_at = datetime.now().month; st.subheader(f"🎂 {MESES_BR[m_at]}")
         for _, r in df_m.iterrows():
             dt = str(r.get('nascimento',''))
             if "/" in dt and int(dt.split('/')[1]) == m_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
 
-    with tabs[2]: # Mural
+    with tabs[2]: # 3. Mural
         try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
         except: avs = ["Vazio", "Vazio", "Vazio"]
         cols = st.columns(3)
@@ -152,64 +150,69 @@ else:
             if b_s.form_submit_button("💾 SALVAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]}); st.rerun()
             if b_l.form_submit_button("🗑️ LIMPAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]}); st.rerun()
 
-    with tabs[3]: # Cadastrar
+    with tabs[3]: # 4. Cadastrar
         with st.form("c_f", clear_on_submit=True):
             ca, cb = st.columns(2)
             with ca: nc, dc, tc = st.text_input("Nome *"), st.text_input("Nasc *"), st.text_input("Tel"); vc = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True); rc = st.selectbox("Ref *", ["Raiz"] + nomes_lista)
             with cb: mc, ru, nu = st.text_input("Email"), st.text_input("Rua"), st.text_input("Nº"); ba, ce = st.text_input("Bairro"), st.text_input("CEP")
             if st.form_submit_button("💾 SALVAR"): requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, mask_data(dc), f"{vc} {rc}" if rc!="Raiz" else "Raiz", mask_tel(tc), mc, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]}); st.rerun()
 
-    with tabs[4]: # Gerenciar
+    with tabs[4]: # 5. Gerenciar (COM CORREÇÃO DE ERRO)
         esc = st.selectbox("Editar", ["--"] + nomes_lista)
         if esc != "--":
-            m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
-            with st.form("g_f"):
-                c1, c2 = st.columns(2)
-                with c1: st.text_input("Nome", value=esc, disabled=True); ed, et = st.text_input("Nasc", m['nascimento']), st.text_input("Tel", m['telefone']); ev = st.radio("Tipo", ["Filho(a) de", "Cônjuge de"], index=1 if "Cônjuge" in m.get('vinculo','') else 0); er = st.selectbox("Ref", ["Raiz"] + nomes_lista)
-                with c2: em, ru, nu = st.text_input("Email", m['email']), st.text_input("Rua", m['rua']), st.text_input("Nº", m['num']); ba, ce = st.text_input("Bairro", m['bairro']), st.text_input("CEP", m['cep'])
-                b1, b2 = st.columns(2)
-                if b1.form_submit_button("💾 ATUALIZAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, mask_data(ed), f"{ev} {er}", mask_tel(et), em, ru, nu, er if "Cônjuge" in ev else "", ba, ce]}); st.rerun()
-                if b2.form_submit_button("🗑️ EXCLUIR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.rerun()
+            resultado_busca = df_m[df_m['nome'] == esc]
+            if not resultado_busca.empty:
+                m = resultado_busca.iloc[0]
+                indices = df_todo.index[df_todo['nome'] == esc].tolist()
+                if indices:
+                    idx = indices[0] + 2
+                    with st.form("g_f"):
+                        c1, c2 = st.columns(2)
+                        with c1: 
+                            st.text_input("Nome", value=esc, disabled=True)
+                            ed, et = st.text_input("Nasc", m.get('nascimento','')), st.text_input("Tel", m.get('telefone',''))
+                            ev = st.radio("Tipo", ["Filho(a) de", "Cônjuge de"], index=1 if "Cônjuge" in str(m.get('vinculo','')) else 0)
+                            er = st.selectbox("Ref", ["Raiz"] + nomes_lista)
+                        with c2: em, ru, nu = st.text_input("Email", m.get('email','')), st.text_input("Rua", m.get('rua','')), st.text_input("Nº", m.get('num','')); ba, ce = st.text_input("Bairro", m.get('bairro','')), st.text_input("CEP", m.get('cep',''))
+                        b1, b2 = st.columns(2)
+                        if b1.form_submit_button("💾 ATUALIZAR"): 
+                            requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, mask_data(ed), f"{ev} {er}", mask_tel(et), em, ru, nu, er if "Cônjuge" in ev else "", ba, ce]})
+                            st.success("Atualizado!"); time.sleep(1); st.rerun()
+                        if b2.form_submit_button("🗑️ EXCLUIR"): 
+                            requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
+                            st.warning("Excluído!"); time.sleep(1); st.rerun()
+                else: st.error("Não foi possível localizar o índice desta pessoa.")
+            else: st.warning("Dados não encontrados. Tente atualizar.")
 
-    with tabs[5]: # Árvore
+    with tabs[5]: # 6. Árvore
         st.subheader("🌳 Organograma da Família")
         dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial", fontsize=10]; edge [color="#546E7A"];'
         for _, row in df_m.iterrows():
-            n, v = row['nome'].strip(), row['vinculo'].strip()
+            n, v = str(row['nome']).strip(), str(row['vinculo']).strip()
             if v != "Raiz":
                 ref = v.split(" de ")[-1] if " de " in v else v
                 dot += f'"{ref}" -> "{n}" [style={"dashed" if "Cônjuge" in v else "solid"}];'
             else: dot += f'"{n}" [fillcolor="#C8E6C9"];'
         st.graphviz_chart(dot + '}')
 
-    with tabs[6]: # 📖 Manual Atualizado
+    with tabs[6]: # 7. Manual Atualizado
         st.markdown("### 📖 Manual de Uso - Família Buscapé")
         st.info("**1. Boas-vindas!**\nEste portal foi criado pela Valéria para ser o nosso ponto de encontro oficial. Aqui, nossa história e nossos contatos estão protegidos e sempre à mão.")
-        
         st.markdown("---")
         st.markdown("**2. O que são as Abas?**")
-        st.write("- **Membros:** Nossa agenda viva.")
-        st.write("- **Niver:** Onde celebramos a vida a cada mês.")
-        st.write("- **Mural:** Nosso quadro de avisos coletivo.")
-        st.write("- **Novo:** Para a família crescer.")
-        st.write("- **Gerenciar:** Para manter tudo organizado.")
-        st.write("- **Árvore:** Onde vemos quem somos e de onde viemos.")
-        
+        st.write("- **Membros:** Nossa agenda viva. - **Niver:** Onde celebramos a vida. - **Mural:** Nosso quadro de avisos.")
+        st.write("- **Novo:** Para a família crescer. - **Gerenciar:** Para manter tudo organizado. - **Árvore:** De onde viemos.")
         st.markdown("---")
         st.markdown("**3. Integrações Mágicas**")
-        st.success("WhatsApp: Fale com o parente sem precisar salvar o número. Mapa: O GPS do seu telemóvel abre direto na porta da casa dele!")
-        
+        st.success("WhatsApp: Fale com o parente sem precisar salvar o número. Mapa: O GPS do celular abre direto na porta da casa dele!")
         st.markdown("---")
         st.markdown("**4. Responsabilidade**")
         st.warning("Lembre-se: o que você apaga aqui, apaga para todos. Use com carinho!")
-        
         st.markdown("---")
         st.markdown("**5. Como colocar na tela do Celular**")
         st.markdown("""
         Se quiser o ícone da árvore direto na tela do seu celular para facilitar o acesso:
-        
-        - **No Android (Chrome):** Clique nos **3 pontinhos** no canto superior direito e escolha a opção **'Adicionar à tela inicial'**.
-        - **No iPhone (Safari):** Clique no ícone de **compartilhar** (quadradinho com uma seta para cima) e procure por **'Adicionar à Tela de Início'**.
+        - **No Android (Chrome):** Clique nos **3 pontinhos** no canto superior direito e escolha **'Adicionar à tela inicial'**.
+        - **No iPhone (Safari):** Clique no ícone de **compartilhar** (quadradinho com uma seta) e escolha **'Adicionar à Tela de Início'**.
         """)
-        
         st.markdown(f"<div style='text-align:center; padding:20px; background:#f0f2f6; border-radius:10px;'><b>SENHA DE ACESSO:</b><br><h2 style='color:#ff4b4b;'>buscape2026</h2></div>", unsafe_allow_html=True)
