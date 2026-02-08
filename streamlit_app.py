@@ -140,6 +140,7 @@ else:
         except: avs = ["Vazio", "Vazio", "Vazio"]
         cols = st.columns(3)
         for idx in range(3): cols[idx].warning(f"**Aviso {idx+1}**\n\n{avs[idx]}")
+        st.divider()
         with st.form("m_f"):
             v1, v2, v3 = st.text_input("A1", avs[0]), st.text_input("A2", avs[1]), st.text_input("A3", avs[2])
             b_s, b_l = st.columns(2)
@@ -160,7 +161,7 @@ else:
             m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
             with st.form("g_f"):
                 c1, c2 = st.columns(2)
-                with c1: st.text_input("Nome", value=esc, disabled=True); ed, et = st.text_input("Nasc", m['nascimento']), st.text_input("Tel", m['telefone']); ev = st.radio("Tipo", ["Filho(a) de", "Cônjuge de"], index=1 if "Cônjuge" in m.get('vinculo','') else 0); er = st.selectbox("Ref", ["Raiz"] + nomes_lista)
+                with c1: st.text_input("Nome", value=esc, disabled=True); ed, et = st.text_input("Nasc", m['nascimento']), st.text_input("Tel", m['telefone']); ev = st.radio("Tipo", ["Filho(a) de", "Cônjuge de"], index=1 if "Cônjuge" in m['vinculo'] else 0); er = st.selectbox("Ref", ["Raiz"] + nomes_lista)
                 with c2: em, ru, nu = st.text_input("Email", m['email']), st.text_input("Rua", m['rua']), st.text_input("Nº", m['num']); ba, ce = st.text_input("Bairro", m['bairro']), st.text_input("CEP", m['cep'])
                 b1, b2 = st.columns(2)
                 if b1.form_submit_button("💾 ATUALIZAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, mask_data(ed), f"{ev} {er}", mask_tel(et), em, ru, nu, er if "Cônjuge" in ev else "", ba, ce]}); st.rerun()
