@@ -8,8 +8,8 @@ st.set_page_config(page_title="Portal Família Buscapé", page_icon="🌳", layo
 
 # 2. CONEXÃO - COLOQUE SEU LINK /EXEC AQUI
 # Sem este link real, o erro "MissingSchema" continuará acontecendo.
-WEBAPP_URL = "COLE_AQUI_SEU_LINK_DO_GOOGLE_SCRIPT_QUE_TERMINA_EM_EXEC"
-CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
+WEBAPP_URL = "WEBAPP_URL = "COLE_AQUI_O_LINK_QUE_TERMINA_EM_EXEC"
+CSV_URL = CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 
 # 3. FUNÇÕES DE MÁSCARA AUTOMÁTICA
 def masc_tel(v):
