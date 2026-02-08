@@ -116,3 +116,54 @@ else:
                         st.link_button("📞 Ligar", f"tel:{t_c}")
                     if r.get('rua'): 
                         st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{r.get('rua','')},{r.get('num','')},{r.get('cep','')}')}")
+
+    with tabs[1]: # Aniversários
+        m_at = datetime.now().month; st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
+        for _, r in df_m.iterrows():
+            dt = str(r.get('nascimento',''))
+            if "/" in dt and int(dt.split('/')[1]) == m_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
+
+    with tabs[2]: # Mural
+        st.write("Nosso quadro de avisos digital. O que temos para hoje?")
+        try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
+        except: avs = ["Vazio", "Vazio", "Vazio"]
+        cols = st.columns(3)
+        for idx in range(3): cols[idx].warning(f"**Aviso {idx+1}**\n\n{avs[idx]}")
+        with st.form("m_f"):
+            v1, v2, v3 = st.text_input("Recado 1", avs[0]), st.text_input("Recado 2", avs[1]), st.text_input("Recado 3", avs[2])
+            if st.form_submit_button("💾 Salvar no Mural"): requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]}); st.rerun()
+
+    with tabs[3]: # Novo
+        st.write("A familia cresceu? Adicione um novo Buscape aqui!")
+        with st.form("c_f", clear_on_submit=True):
+            ca, cb = st.columns(2)
+            with ca: nc, dc, tc = st.text_input("Nome Completo *"), st.text_input("Nascimento *"), st.text_input("Telefone")
+            with cb: mc, ru, nu = st.text_input("Email"), st.text_input("Rua"), st.text_input("Nº")
+            vc = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True); rc = st.selectbox("Referência *", ["Raiz"] + nomes_lista)
+            if st.form_submit_button("💾 Salvar Cadastro"):
+                v_f = f"{vc} {rc}" if rc != "Raiz" else "Raiz"
+                requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dc, v_f, tc, mc, ru, nu, rc if "Cônjuge" in vc else "", "", ""]}); st.rerun()
+
+    with tabs[4]: # Gerenciar
+        st.write("Edite ou exclua cadastros para manter nossa casa limpa.")
+        esc = st.selectbox("Quem voce deseja alterar?", ["--"] + nomes_lista)
+        if esc != "--":
+            m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
+            with st.form("g_f"):
+                c1, c2 = st.columns(2)
+                with c1: st.text_input("Nome", value=esc, disabled=True); ed, et = st.text_input("Nasc", m['nascimento']), st.text_input("Tel", m['telefone'])
+                with c2: em, ru, nu = st.text_input("Email", m['email']), st.text_input("Rua", m['rua']), st.text_input("Nº", m['num'])
+                b1, b2 = st.columns(2)
+                if b1.form_submit_button("💾 Atualizar"): requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, ed, m['vinculo'], et, em, ru, nu, m.get('conjuge',''), "", ""]}); st.rerun()
+                if b2.form_submit_button("🗑️ Excluir"): requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.rerun()
+
+    with tabs[5]: # Árvore
+        st.subheader("🌳 Nossas Raizes Visuais")
+        dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#f8d7da", fontname="Arial", fontsize=10]; edge [color="#721c24"];'
+        for _, row in df_m.iterrows():
+            n, v = row['nome'].strip(), row['vinculo'].strip()
+            if v != "Raiz":
+                ref = v.split(" de ")[-1] if " de " in v else v
+                dot += f'"{ref}" -> "{n}" [style={"dashed" if "Cônjuge" in v else "solid"}];'
+            else: dot += f'"{n}" [fillcolor="#d4edda"];'
+        st.graphviz_chart(dot + '}')
