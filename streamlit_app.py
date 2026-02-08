@@ -25,16 +25,17 @@ CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb
 
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES (MÁSCARA REFORÇADA) ---
+# --- FUNÇÕES (MÁSCARA BLINDADA PARA NÚMEROS GIGANTES) ---
 def limpar(v): return re.sub(r'\D', '', str(v))
 
 def mask_tel(v):
     n = limpar(str(v))
-    # Limita a 11 dígitos para não quebrar o visual com números gigantes
-    n = n[:11]
-    if len(n) == 11: return f"({n[:2]}) {n[2:7]}-{n[7:11]}"
-    if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
-    return v if v else "-"
+    if not n: return "-"
+    # Se for um número gigante (como o do Fulaninho), limita a 11 para não quebrar o layout
+    n_limpo = n[:11]
+    if len(n_limpo) == 11: return f"({n_limpo[:2]}) {n_limpo[2:7]}-{n_limpo[7:11]}"
+    if len(n_limpo) == 10: return f"({n_limpo[:2]}) {n_limpo[2:6]}-{n_limpo[6:10]}"
+    return n_limpo
 
 def mask_data(v):
     n = limpar(str(v))
@@ -98,28 +99,31 @@ else:
             with col_exp.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    # LÓGICA DE CÔNJUGE ÚNICO E RECÍPROCO
+                    # LÓGICA DE CÔNJUGE ÚNICO (RECIPROCIDADE FORÇADA)
                     conj_b = str(r.get('conjuge','')).strip()
                     vinc_b = str(r.get('vinculo','')).strip()
+                    
+                    # Procura quem chamou este membro de cônjuge no banco todo
+                    quem_me_citou = df_m[(df_m['conjuge'].str.strip() == nome_at) | (df_m['vinculo'].str.contains(f"Cônjuge de {nome_at}", case=False, na=False))]['nome'].tolist()
+                    
                     parceiro = ""
-                    # 1. Verifica nome real (Ignora FALSE/Sim)
                     if conj_b.lower() not in ["", "nan", "false", "0", "none", "sim"]: parceiro = conj_b
-                    # 2. Verifica se alguém citou este nome como cônjuge (Reciprocidade)
-                    if not parceiro:
-                        recip = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
-                        if recip: parceiro = recip[0]
-                    # 3. Verifica se o vínculo diz "Cônjuge de"
-                    if not parceiro and "Cônjuge de" in vinc_b: parceiro = vinc_b.replace("Cônjuge de", "").strip()
+                    elif "Cônjuge de" in vinc_b: parceiro = vinc_b.replace("Cônjuge de", "").strip()
+                    elif quem_me_citou: parceiro = quem_me_citou[0]
 
                     if parceiro and parceiro != nome_at: st.write(f"💍 **Cônjuge:** {parceiro}")
                     else: st.write(f"**Cônjuge:** Nenhum")
                     
-                    # VÍNCULO AUTOMÁTICO
+                    # VÍNCULO (EVITA DUPLICIDADE COM O CÔNJUGE)
                     vinc_f = vinc_b
                     if vinc_b and vinc_b != "Raiz" and "Cônjuge" not in vinc_b and "Filho" not in vinc_b:
                         vinc_f = f"Filho(a) de {vinc_b}"
                     
-                    st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))} | 🌳 **Vínculo:** {vinc_f}")
+                    if "Cônjuge" in vinc_f: # Se já mostrou a aliança acima, não repete aqui
+                        st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))}")
+                    else:
+                        st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))} | 🌳 **Vínculo:** {vinc_f}")
+                    
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} ({r.get('cep','-')})")
                 with cl:
                     t_c = limpar(r.get('telefone',''))
@@ -128,7 +132,7 @@ else:
                     if r.get('rua'): st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{r.get('rua','')},{r.get('num','')},{r.get('cep','')}')}")
         if sel_ids: c_topo.download_button("📥 PDF", gerar_pdf(df_m.loc[sel_ids]), "familia.pdf")
 
-    # --- TABS 2 e 3 (TRANCADAS E COM BOTÃO LIMPAR) ---
+    # --- TABS 2 e 3 (TRANCADAS) ---
     with tabs[1]: # Aniversários
         m_at = datetime.now().month; st.subheader(f"🎂 {MESES_BR[m_at]}")
         for _, r in df_m.iterrows():
@@ -140,14 +144,13 @@ else:
         except: avs = ["Vazio", "Vazio", "Vazio"]
         cols = st.columns(3)
         for idx in range(3): cols[idx].warning(f"**Aviso {idx+1}**\n\n{avs[idx]}")
-        st.divider()
         with st.form("m_f"):
             v1, v2, v3 = st.text_input("A1", avs[0]), st.text_input("A2", avs[1]), st.text_input("A3", avs[2])
             b_s, b_l = st.columns(2)
             if b_s.form_submit_button("💾 SALVAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]}); st.rerun()
             if b_l.form_submit_button("🗑️ LIMPAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]}); st.rerun()
 
-    # --- TABS 4 e 5 (TRANCADAS E COM BOTÃO EXCLUIR) ---
+    # --- TABS 4 e 5 (TRANCADAS) ---
     with tabs[3]: # Cadastrar
         with st.form("c_f", clear_on_submit=True):
             ca, cb = st.columns(2)
@@ -161,7 +164,7 @@ else:
             m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
             with st.form("g_f"):
                 c1, c2 = st.columns(2)
-                with c1: st.text_input("Nome", value=esc, disabled=True); ed, et = st.text_input("Nasc", m['nascimento']), st.text_input("Tel", m['telefone']); ev = st.radio("Tipo", ["Filho(a) de", "Cônjuge de"], index=1 if "Cônjuge" in m['vinculo'] else 0); er = st.selectbox("Ref", ["Raiz"] + nomes_lista)
+                with c1: st.text_input("Nome", value=esc, disabled=True); ed, et = st.text_input("Nasc", m['nascimento']), st.text_input("Tel", m['telefone']); ev = st.radio("Tipo", ["Filho(a) de", "Cônjuge de"], index=1 if "Cônjuge" in m.get('vinculo','') else 0); er = st.selectbox("Ref", ["Raiz"] + nomes_lista)
                 with c2: em, ru, nu = st.text_input("Email", m['email']), st.text_input("Rua", m['rua']), st.text_input("Nº", m['num']); ba, ce = st.text_input("Bairro", m['bairro']), st.text_input("CEP", m['cep'])
                 b1, b2 = st.columns(2)
                 if b1.form_submit_button("💾 ATUALIZAR"): requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, mask_data(ed), f"{ev} {er}", mask_tel(et), em, ru, nu, er if "Cônjuge" in ev else "", ba, ce]}); st.rerun()
