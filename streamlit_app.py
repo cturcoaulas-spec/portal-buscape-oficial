@@ -7,8 +7,8 @@ import re
 st.set_page_config(page_title="Portal Família Buscapé", page_icon="🌳", layout="centered")
 
 # --- CONFIGURAÇÃO DE CONEXÃO ---
-# IMPORTANTE: Substitua a URL abaixo pela sua URL de Implantação do Google Apps Script
-WEBAPP_URL = "SUA_URL_AQUI_QUE_TERMINA_EM_EXEC"
+# IMPORTANTE: Substitua o link abaixo pela sua URL do Google Script (que termina em /exec)
+WEBAPP_URL = "COLE_AQUI_SEU_LINK_DO_GOOGLE_SCRIPT"
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 
 # FUNÇÕES DE MÁSCARA AUTOMÁTICA
@@ -41,22 +41,18 @@ else:
     # --- APP PRINCIPAL (LOGADO) ---
     def carregar_dados():
         try:
-            # Lê os dados em tempo real da nuvem
             df = pd.read_csv(CSV_URL, dtype=str).fillna("")
-            # Padroniza nomes das colunas para evitar erros de leitura
             df.columns = [c.strip().lower() for c in df.columns]
             return df
         except:
             return pd.DataFrame(columns=["nome", "nascimento", "ascendente", "telefone", "email", "rua", "num", "comp", "bairro", "cep"])
 
     df = carregar_dados()
-    # Prepara a lista de nomes para as janelas de rolagem (Selectbox)
     nomes_existentes = sorted(df['nome'].unique().tolist()) if not df.empty else []
     opcoes_ascendente = ["Raiz"] + nomes_existentes
 
     st.title("🌳 Portal Buscapé")
     
-    # ORGANIZAÇÃO EM ABAS (TABS)
     tab1, tab2, tab3 = st.tabs(["🔍 Consultar", "➕ Novo Cadastro", "✏️ Editar Cadastro"])
 
     # --- ABA 1: CONSULTA ---
@@ -89,40 +85,32 @@ else:
             
             if st.form_submit_button("CADASTRAR NA NUVEM"):
                 if nome and nasc:
-                    # Aplica as máscaras de formatação
                     nasc_f = aplicar_mascara_data(nasc)
                     tel_f = aplicar_mascara_tel(tel)
-                    
-                    # Prepara a lista exata de 10 colunas para o Google
                     dados_envio = [nome, nasc_f, asc, tel_f, mail, rua, num, "", bair, cep]
                     
                     try:
                         resp = requests.post(WEBAPP_URL, json={"action": "append", "data": dados_envio})
                         if resp.status_code == 200:
-                            st.success(f"✅ {nome} foi adicionado com sucesso!")
-                            st.balloons()
+                            st.success(f"✅ {nome} foi adicionado!")
                             st.rerun()
                         else:
-                            st.error("❌ Erro ao enviar para o Google. Verifique a URL do Script.")
-                    except Exception as e:
-                        st.error(f"Erro de conexão: {e}")
-                else:
-                    st.warning("Preencha ao menos Nome e Nascimento.")
+                            st.error("❌ Erro no Google Script. Verifique a Implantação.")
+                    except:
+                        st.error("❌ Erro de conexão. Verifique se a URL está correta.")
 
     # --- ABA 3: EDIÇÃO ---
     with tab3:
-        st.subheader("Atualizar Dados Existentes")
+        st.subheader("Atualizar Dados")
         if not df.empty:
-            nome_selecionado = st.selectbox("Selecione quem deseja editar:", nomes_existentes)
+            nome_selecionado = st.selectbox("Selecione quem editar:", nomes_existentes)
             dados_pessoa = df[df['nome'] == nome_selecionado].iloc[0]
-            # Calcula a linha física na planilha (index + 2)
             linha_planilha = df.index[df['nome'] == nome_selecionado].tolist()[0] + 2
 
             with st.form("form_editar"):
                 c1, c2 = st.columns(2)
                 with c1:
                     ed_nasc = st.text_input("Nascimento", value=dados_pessoa.get('nascimento', ''))
-                    # Localiza o ascendente atual na lista para pré-selecionar
                     try: idx_asc = opcoes_ascendente.index(dados_pessoa.get('ascendente', 'Raiz'))
                     except: idx_asc = 0
                     ed_asc = st.selectbox("Ascendente", opcoes_ascendente, index=idx_asc)
@@ -130,27 +118,4 @@ else:
                     ed_mail = st.text_input("E-mail", value=dados_pessoa.get('email', ''))
                 with c2:
                     ed_rua = st.text_input("Rua", value=dados_pessoa.get('rua', ''))
-                    ed_num = st.text_input("Nº", value=dados_pessoa.get('num', ''))
-                    ed_bair = st.text_input("Bairro", value=dados_pessoa.get('bairro', ''))
-                    ed_cep = st.text_input("CEP", value=dados_pessoa.get('cep', ''))
-                
-                if st.form_submit_button("ATUALIZAR DADOS"):
-                    n_edit_f = aplicar_mascara_data(ed_nasc)
-                    t_edit_f = aplicar_mascara_tel(ed_tel)
-                    
-                    # Monta os dados atualizados
-                    dados_atualizados = [nome_selecionado, n_edit_f, ed_asc, t_edit_f, ed_mail, ed_rua, ed_num, "", ed_bair, ed_cep]
-                    
-                    requests.post(WEBAPP_URL, json={"action": "edit", "row": linha_planilha, "data": dados_atualizados})
-                    st.success(f"✅ Dados de {nome_selecionado} atualizados!")
-                    st.rerun()
-        else:
-            st.info("Nenhum membro encontrado para editar.")
-
-# RODAPÉ
-st.sidebar.markdown("---")
-st.sidebar.write("💻 **Sistema Portal Família Buscapé v4.0**")
-if st.session_state.logado:
-    if st.sidebar.button("Sair do Sistema"):
-        st.session_state.logado = False
-        st.rerun()
+                    ed_num = st.text
