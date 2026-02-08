@@ -17,32 +17,33 @@ MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Jul
 # --- FUNÇÕES ---
 def limpar(v): return re.sub(r'\D', '', str(v))
 
-def validar_e_formatar_tel(v):
+def mask_tel(v):
     n = limpar(v)
     if len(n) == 11: return f"({n[:2]}) {n[2:7]}-{n[7:11]}"
     if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
-    return v if v else ""
+    return v
 
-def validar_e_formatar_data(v):
+def mask_data(v):
     n = limpar(v)
     if len(n) == 8: return f"{n[:2]}/{n[2:4]}/{n[4:8]}"
-    return v if v else ""
+    return v
 
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, "Relatório Família Buscapé", ln=True, align="C")
+    pdf.cell(200, 10, "Relatorio Familia Buscape", ln=True, align="C")
     for _, r in dados.iterrows():
         pdf.set_font("Arial", "B", 11)
         pdf.cell(0, 8, f"Nome: {r.get('nome','-')}", ln=True)
         pdf.set_font("Arial", size=10)
-        pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {r.get('telefone','-')}", ln=True)
-        pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} CEP: {r.get('cep','-')}", ln=True)
+        pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {r.get('telefone','-')} | Email: {r.get('email','-')}", ln=True)
+        end = f"{r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} | CEP: {r.get('cep','-')}"
+        pdf.cell(0, 6, f"End: {end}", ln=True)
         pdf.ln(4); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- LOGIN ---
+# --- ACESSO ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -63,7 +64,6 @@ else:
     df_m = df_todo[df_todo['nome'].str.strip() != ""].sort_values(by='nome').copy()
     nomes_lista = sorted(df_m['nome'].unique().tolist())
 
-    # --- SIDEBAR ---
     with st.sidebar:
         st.title("🔔 Notificações")
         hoje = datetime.now().strftime("%d/%m")
@@ -84,12 +84,18 @@ else:
         for i, r in df_m.iterrows():
             col1, col2 = st.columns([0.2, 3.8])
             if col1.checkbox("", key=f"chk_{i}"): sel_ids.append(i)
-            with col2.expander(f"👤 {r.get('nome','-')} | 📅 {r.get('nascimento','-')}"):
+            
+            # LÓGICA DO ÍCONE: Aliança ou X
+            is_conjuge = "💍" if r.get('conjuge','').strip() != "" or "Cônjuge" in r.get('ascendente','') else "❌"
+            nasc_texto = f"🎂 {r.get('nascimento','-')}" # O Bolo aqui!
+            
+            with col2.expander(f"{is_conjuge} {r.get('nome','-')} | {nasc_texto}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
                     st.write(f"💍 **Cônjuge:** {r.get('conjuge','-')}")
                     st.write(f"📞 **Tel:** {r.get('telefone','-')} | 🌳 **Vínculo:** {r.get('ascendente','-')}")
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})")
+                    st.write(f"✉️ **E-mail:** {r.get('email','-')}")
                 with cl:
                     t_c = limpar(r.get('telefone',''))
                     if len(t_c) >= 10:
@@ -98,9 +104,47 @@ else:
                     if r.get('rua'):
                         loc = quote(f"{r['rua']}, {r['num']}, {r['bairro']}, {r['cep']}")
                         st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={loc}")
+
         if sel_ids:
             pdf_b = gerar_pdf(df_m.loc[sel_ids])
-            c_topo.download_button("📥 BAIXAR PDF", pdf_b, "familia.pdf")
+            c_topo.download_button("📥 BAIXAR PDF SELECIONADOS", pdf_b, "familia.pdf")
+
+    # --- TAB 2: ANIVERSÁRIOS ---
+    with tabs[1]:
+        m_at = datetime.now().month
+        st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
+        any_niver = False
+        for _, r in df_m.iterrows():
+            dt = str(r.get('nascimento',''))
+            clean_dt = limpar(dt)
+            # Verifica mês se estiver em formato DD/MM/AAAA ou DDMMAAAA
+            if "/" in dt:
+                mes_n = int(dt.split('/')[1]) if len(dt.split('/')) > 1 else 0
+            elif len(clean_dt) == 8:
+                mes_n = int(clean_dt[2:4])
+            else: mes_n = 0
+            
+            if mes_n == m_at:
+                st.info(f"🎈 Dia {dt[:2]} - {r['nome']}")
+                any_niver = True
+        if not any_niver: st.write("Nenhum aniversariante este mês.")
+
+    # --- TAB 3: MURAL ---
+    with tabs[2]:
+        st.subheader("📢 Mural de Avisos")
+        avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
+        cols = st.columns(3)
+        for i in range(3): cols[i].warning(f"**Aviso {i+1}**\n\n{avs[i]}")
+        st.divider()
+        with st.form("mural_admin"):
+            v1, v2, v3 = st.text_input("Aviso 1", avs[0]), st.text_input("Aviso 2", avs[1]), st.text_input("Aviso 3", avs[2])
+            b_s, b_l = st.columns(2)
+            if b_s.form_submit_button("💾 Salvar Avisos"):
+                requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]})
+                st.success("Mural atualizado!"); st.rerun()
+            if b_l.form_submit_button("🗑️ Limpar Mural"):
+                requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","", "Vazio", "Vazio", "Vazio", "","",""]})
+                st.rerun()
 
     # --- TAB 4: CADASTRAR ---
     with tabs[3]:
@@ -119,46 +163,53 @@ else:
                 ba_c, ce_c = st.text_input("Bairro"), st.text_input("CEP")
             
             if st.form_submit_button("💾 SALVAR CADASTRO"):
-                if not n_c or not d_c or not r_c:
+                if n_c.strip().lower() in [n.lower() for n in nomes_lista]:
+                    st.error(f"❌ Erro: O nome '{n_c}' já está cadastrado!")
+                elif not n_c or not d_c or not r_c:
                     st.error("⚠️ Preencha os campos obrigatórios (*)")
                 else:
-                    fd, ft = validar_e_formatar_data(d_c), validar_e_formatar_tel(t_c)
+                    fd, ft = mask_data(d_c), mask_tel(t_c)
                     vinc = f"{v_c} {r_c}" if r_c != "Raiz" else "Raiz"
                     conj = r_c if "Cônjuge" in v_c else ""
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[n_c, fd, vinc, ft, m_c, ru_c, nu_c, conj, ba_c, ce_c]})
-                    st.success("✅ Salvo!"); st.rerun()
+                    st.success("✅ Cadastro realizado com sucesso!"); st.rerun()
 
-    # --- TAB 5: GERENCIAR ---
+    # --- TAB 5: GERENCIAR (ESPELHADO) ---
     with tabs[4]:
         st.subheader("✏️ Editar ou Excluir")
-        escolha = st.selectbox("Selecione o membro", ["--"] + nomes_lista)
+        escolha = st.selectbox("Selecione o membro para editar", ["--"] + nomes_lista)
         if escolha != "--":
-            dados_m = df_m[df_m['nome'] == escolha].iloc[0]
-            # O índice precisa ser calculado sobre o dataframe original da planilha
+            m = df_m[df_m['nome'] == escolha].iloc[0]
             idx_pl = df_todo.index[df_todo['nome'] == escolha].tolist()[0] + 2
             
-            with st.form("f_edit"):
+            with st.form("f_edit_mirror"):
                 col1, col2 = st.columns(2)
                 with col1:
-                    e_n = st.text_input("Nome *", value=dados_m.get('nome',''), disabled=True)
-                    e_d = st.text_input("Nascimento *", value=dados_m.get('nascimento',''))
-                    e_t = st.text_input("Telefone", value=dados_m.get('telefone',''))
-                    e_v = st.text_input("Vínculo", value=dados_m.get('ascendente',''))
-                    e_conj = st.selectbox("Cônjuge", [""] + nomes_lista, 
-                                         index=nomes_lista.index(dados_m.get('conjuge',''))+1 if dados_m.get('conjuge','') in nomes_lista else 0)
+                    e_n = st.text_input("Nome Completo *", value=m.get('nome',''), disabled=True)
+                    e_d = st.text_input("Nascimento (DDMMAAAA) *", value=m.get('nascimento',''))
+                    e_t = st.text_input("Telefone (DDD + Número)", value=m.get('telefone',''))
+                    # Lógica para pré-selecionar o tipo de vínculo
+                    idx_vinc = 1 if "Cônjuge" in m.get('ascendente','') else 0
+                    e_v_tipo = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True, index=idx_vinc)
+                    # Lógica para pré-selecionar a referência
+                    ref_atual = m.get('ascendente','').split(' de ')[-1] if ' de ' in m.get('ascendente','') else "Raiz"
+                    idx_ref = nomes_lista.index(ref_atual)+1 if ref_atual in nomes_lista else 0
+                    e_ref = st.selectbox("Referência *", ["Raiz"] + nomes_lista, index=idx_ref)
                 with col2:
-                    e_m = st.text_input("E-mail", value=dados_m.get('email',''))
-                    e_ru = st.text_input("Rua", value=dados_m.get('rua',''))
-                    e_nu = st.text_input("Nº", value=dados_m.get('num',''))
-                    e_ba = st.text_input("Bairro", value=dados_m.get('bairro',''))
-                    e_ce = st.text_input("CEP", value=dados_m.get('cep',''))
+                    e_m = st.text_input("E-mail", value=m.get('email',''))
+                    e_ru = st.text_input("Rua", value=m.get('rua',''))
+                    e_nu = st.text_input("Nº", value=m.get('num',''))
+                    e_ba = st.text_input("Bairro", value=m.get('bairro',''))
+                    e_ce = st.text_input("CEP", value=m.get('cep',''))
                 
                 b1, b2 = st.columns(2)
-                if b1.form_submit_button("💾 ATUALIZAR"):
+                if b1.form_submit_button("💾 ATUALIZAR DADOS"):
                     if not e_d: st.error("⚠️ Data de nascimento é obrigatória")
                     else:
-                        requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[escolha, validar_e_formatar_data(e_d), e_v, validar_e_formatar_tel(e_t), e_m, e_ru, e_nu, e_conj, e_ba, e_ce]})
-                        st.success("✅ Atualizado!"); st.rerun()
-                if b2.form_submit_button("🗑️ EXCLUIR"):
+                        v_e = f"{e_v_tipo} {e_ref}" if e_ref != "Raiz" else "Raiz"
+                        c_e = e_ref if "Cônjuge" in e_v_tipo else ""
+                        requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[escolha, mask_data(e_d), v_e, mask_tel(e_t), e_m, e_ru, e_nu, c_e, e_ba, e_ce]})
+                        st.success("✅ Atualização realizada com sucesso!"); st.rerun()
+                if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[""]*10})
-                    st.success("Excluído!"); st.rerun()
+                    st.success("🗑️ Membro removido com sucesso!"); st.rerun()
