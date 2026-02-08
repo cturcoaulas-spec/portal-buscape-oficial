@@ -2,13 +2,12 @@ import streamlit as st
 import pandas as pd
 import requests
 import re
-import time
 import unicodedata
 from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. ESTILO E ALMA DO PORTAL
+# 1. CONFIGURAÇÃO E ESTILO
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
 st.markdown("""
@@ -24,7 +23,7 @@ WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJ
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FERRAMENTAS DE APOIO ---
+# --- FUNÇÕES ---
 def limpar(v): return re.sub(r'\D', '', str(v))
 def mask_tel(v):
     n = limpar(str(v))[:11]
@@ -32,15 +31,14 @@ def mask_tel(v):
     if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
     return n if n else "-"
 
-# --- PORTAL DE ENTRADA ---
+# --- LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
-    st.title("🌳 Bem-vindos ao Lar Digital da Família Buscapé")
-    st.write("Um lugar para guardar nossas raízes e cultivar nossos laços.")
-    psw = st.text_input("Qual é a nossa senha secreta?", type="password")
-    if st.button("ABRIR O PORTAL"):
+    st.title("🌳 Família Buscapé")
+    psw = st.text_input("Senha da Família", type="password")
+    if st.button("ENTRAR"):
         if psw == "buscape2026": st.session_state.logado = True; st.rerun()
-        else: st.error("Senha incorreta! Peça para a Valéria.")
+        else: st.error("Senha incorreta!")
 else:
     @st.cache_data(ttl=2)
     def carregar():
@@ -58,40 +56,30 @@ else:
     nomes_lista = sorted([n.strip() for n in df_m['nome'].unique().tolist() if n.strip()])
 
     with st.sidebar:
-        st.title("🎂 Aniversários")
+        st.title("🎂 Hoje")
         hoje_dm = datetime.now().strftime("%d/%m")
         niver = [r['nome'] for _, r in df_m.iterrows() if str(r.get('nascimento','')).startswith(hoje_dm)]
         if niver:
-            for n in niver: st.success(f"🎈 Hoje: {n}")
-        else: st.info("Ninguém soprando velinhas hoje.")
+            for n in niver: st.success(f"🎈 Parabéns: {n}")
+        else: st.info("Sem aniversários hoje.")
         
         st.divider()
-        if st.button("📜 Manual do Usuário (PDF)"):
+        if st.button("📜 Guia da Família (PDF)"):
             pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", "B", 16)
-            pdf.cell(200, 10, "Manual de Uso - Familia Buscape", ln=True, align="C"); pdf.ln(10)
-            
-            # Texto do Manual (Organizado para evitar erros)
-            secoes = [
-                ("1. Boas-vindas!", "Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao."),
-                ("2. O que sao as Abas?", "Membros: Nossa agenda viva. \nNiver: Onde celebramos a vida a cada mes. \nMural: Nosso quadro de avisos coletivo. \nNovo: Para a familia crescer. \nGerenciar: Para manter tudo organizado. \nArvore: Onde vemos quem somos e de onde viemos."),
-                ("3. Integracoes Magicas", "Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!"),
-                ("4. Responsabilidade", "Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!"),
-                ("5. No seu Telemovel", "Para ter o icone da Arvore na tela inicial: No Android (Chrome) clique nos 3 pontinhos e 'Instalar'. No iPhone (Safari) clique na seta de partilhar e 'Ecra principal'.")
-            ]
-            for titulo, texto in secoes:
-                pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, titulo, ln=True)
-                pdf.set_font("Arial", "", 11); pdf.multi_cell(0, 7, texto); pdf.ln(5)
-            
-            pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, "SENHA: buscape2026", ln=True, align="C")
-            st.download_button("📥 Baixar Guia em PDF", pdf.output(dest='S').encode('latin-1'), "Manual_Buscape.pdf")
-            
+            pdf.cell(200, 10, "Guia do Portal - Familia Buscape", ln=True, align="C"); pdf.ln(10)
+            pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, "Sejam Bem-Vindos!", ln=True)
+            pdf.set_font("Arial", "", 11); pdf.multi_cell(0, 7, "Este portal foi criado pela Valeria para unir a familia. Use com carinho e responsabilidade. O que voce altera, muda para todos!")
+            pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, "Como usar no Celular", ln=True)
+            pdf.set_font("Arial", "", 11); pdf.multi_cell(0, 7, "Android: No Chrome, use 'Instalar aplicativo'.\niPhone: No Safari, use 'Adicionar a Tela de Inicio'.")
+            pdf.ln(10); pdf.cell(0, 10, "SENHA: buscape2026", ln=True, align="C")
+            st.download_button("📥 Baixar Guia em PDF", pdf.output(dest='S').encode('latin-1'), "Guia_Buscape.pdf")
+        
         st.divider(); st.button("🚪 Sair", on_click=lambda: st.session_state.update({"logado": False}))
 
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore"])
 
     with tabs[0]: # Membros
-        st.write("Aqui voce encontra toda a nossa 'tropa'. Use os botoes para falar ou visitar!")
         for i, r in df_m.iterrows():
             nome_at = r.get('nome','').strip()
             with st.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
@@ -103,7 +91,9 @@ else:
                     else:
                         recip = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
                         if recip: parc = recip[0]
+                    
                     if parc and parc != nome_at: st.write(f"💍 **Cônjuge:** {parc}")
+                    else: st.write("**Cônjuge:** Nenhum")
                     
                     vinc_f = vinc_b
                     if vinc_b and vinc_b != "Raiz" and "Cônjuge" not in vinc_b and "Filho" not in vinc_b: vinc_f = f"Filho(a) de {vinc_b}"
@@ -124,7 +114,6 @@ else:
             if "/" in dt and int(dt.split('/')[1]) == m_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
 
     with tabs[2]: # Mural
-        st.write("Nosso quadro de avisos digital. O que temos para hoje?")
         try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
         except: avs = ["Vazio", "Vazio", "Vazio"]
         cols = st.columns(3)
@@ -134,7 +123,6 @@ else:
             if st.form_submit_button("💾 Salvar no Mural"): requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]}); st.rerun()
 
     with tabs[3]: # Novo
-        st.write("A familia cresceu? Adicione um novo Buscape aqui!")
         with st.form("c_f", clear_on_submit=True):
             ca, cb = st.columns(2)
             with ca: nc, dc, tc = st.text_input("Nome Completo *"), st.text_input("Nascimento *"), st.text_input("Telefone")
@@ -145,8 +133,7 @@ else:
                 requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dc, v_f, tc, mc, ru, nu, rc if "Cônjuge" in vc else "", "", ""]}); st.rerun()
 
     with tabs[4]: # Gerenciar
-        st.write("Edite ou exclua cadastros para manter nossa casa limpa.")
-        esc = st.selectbox("Quem voce deseja alterar?", ["--"] + nomes_lista)
+        esc = st.selectbox("Quem deseja alterar?", ["--"] + nomes_lista)
         if esc != "--":
             m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
             with st.form("g_f"):
@@ -158,7 +145,7 @@ else:
                 if b2.form_submit_button("🗑️ Excluir"): requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.rerun()
 
     with tabs[5]: # Árvore
-        st.subheader("🌳 Nossas Raizes Visuais")
+        st.subheader("🌳 Nossa Árvore")
         dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#f8d7da", fontname="Arial", fontsize=10]; edge [color="#721c24"];'
         for _, row in df_m.iterrows():
             n, v = row['nome'].strip(), row['vinculo'].strip()
