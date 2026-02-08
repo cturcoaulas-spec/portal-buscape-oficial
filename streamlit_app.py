@@ -32,11 +32,9 @@ def gerar_pdf(dados_selecionados):
         pdf.cell(0, 10, f"Membro: {r.get('nome','-')}", ln=True)
         pdf.set_font("Arial", size=10)
         pdf.cell(0, 8, f"Nascimento: {r.get('nascimento','-')} | Tel: {r.get('telefone','-')}", ln=True)
-        # Ordem: Rua, Num, Complemento
-        endereco = f"{r.get('rua','-')}, {r.get('num','-')} {r.get('complemento','')}".strip()
-        pdf.cell(0, 8, f"Endereco: {endereco}", ln=True)
+        end = f"{r.get('rua','-')}, {r.get('num','-')} {r.get('complemento','')}".strip()
+        pdf.cell(0, 8, f"Endereco: {end}", ln=True)
         pdf.cell(0, 8, f"Bairro: {r.get('bairro','-')} | CEP: {r.get('cep','-')}", ln=True)
-        pdf.cell(0, 8, f"E-mail: {r.get('email','-')}", ln=True)
         pdf.ln(5); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(5)
     return pdf.output(dest='S').encode('latin-1')
 
@@ -71,9 +69,8 @@ else:
             for i, r in df.iterrows():
                 col_sel, col_exp = st.columns([0.1, 3.9])
                 with col_sel:
-                    if st.checkbox("", key=f"p_sel_{i}"): selecionados.append(r)
+                    if st.checkbox("", key=f"sel_p_{i}"): selecionados.append(r)
                 with col_exp:
-                    # Uso do .get() evita o erro de "coluna não encontrada"
                     with st.expander(f"👤 {r.get('nome','-')} | 📅 {r.get('nascimento','-')}"):
                         c1, c2, c3 = st.columns([2, 2, 1])
                         with c1:
@@ -81,7 +78,7 @@ else:
                             st.write(f"**✉️ E-mail:** {r.get('email','-')}")
                         with c2:
                             st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} {r.get('complemento','')}")
-                            st.write(f"Bairro: {r.get('bairro','-')} | CEP: {r.get('cep','-')}")
+                            st.write(f"CEP: {r.get('cep','-')}")
                         with c3:
                             tel_p = limpar_numero(r.get('telefone',''))
                             if len(tel_p) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{tel_p}")
@@ -89,9 +86,8 @@ else:
             if selecionados:
                 pdf_b = gerar_pdf(pd.DataFrame(selecionados))
                 st.sidebar.download_button("📄 Baixar PDF Selecionados", pdf_b, "familia_buscape.pdf", "application/pdf")
-        else: st.info("Nada cadastrado.")
 
-    # --- TAB 2: ANIVERSÁRIOS 🎂 ---
+    # --- TAB 2: ANIVERSÁRIOS ---
     with t2:
         st.subheader("🎂 Aniversariantes do Mês")
         mes_h = datetime.now().strftime("%m")
@@ -102,43 +98,38 @@ else:
                 p = limpar_numero(d)
                 m = d.split("/")[1] if "/" in d else (p[2:4] if len(p)>=4 else "")
                 if m == mes_h: niver_list.append({"dia": d.split("/")[0] if "/" in d else p[:2], "nome": r.get('nome','')})
-            
             if niver_list:
                 for n in sorted(niver_list, key=lambda x: x['dia']):
                     st.write(f"🎂 **Dia {n['dia']}** - {n['nome']}")
-            else: st.info("Ninguém assopra velinhas este mês.")
+            else: st.info("Ninguém faz aniversário este mês.")
 
     # --- TAB 3: CADASTRO ---
     with t3:
         st.subheader("Novo Integrante")
         with st.form("f_novo", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            with col1:
+            c1, c2 = st.columns(2)
+            with c1:
                 f_n = st.text_input("Nome Completo")
                 f_d = st.text_input("Nascimento (DDMMAAAA)")
                 f_a = st.selectbox("Ascendente", ["Raiz"] + lista_nomes)
                 f_t = st.text_input("Telefone")
-                f_e = st.text_input("E-mail")
-            with col2:
+            with c2:
                 f_r = st.text_input("Rua")
                 f_u = st.text_input("Número")
                 f_c = st.text_input("Complemento")
-                f_ba = st.text_input("Bairro")
                 f_ce = st.text_input("CEP")
             
             if st.form_submit_button("💾 SALVAR"):
-                if f_n in lista_nomes:
-                    st.error("⚠️ Já tem cadastro!")
+                if f_n in lista_nomes: st.error("⚠️ Já tem cadastro!")
                 elif f_n:
-                    # Garantindo a ordem exata das colunas da planilha
-                    d_final = [f_n, aplicar_mascara_data(f_d), f_a, aplicar_mascara_tel(f_t), f_e, f_r, f_u, f_c, f_ba, f_ce]
+                    d_final = [f_n, aplicar_mascara_data(f_d), f_a, aplicar_mascara_tel(f_t), "", f_r, f_u, f_c, "", f_ce]
                     requests.post(WEBAPP_URL, json={"action": "append", "data": d_final})
                     st.success("✅ Salvo!")
                     st.rerun()
 
     # --- TAB 4: EDITAR ---
     with t4:
-        st.subheader("Gerenciar Membro")
+        st.subheader("Gerenciar")
         if lista_nomes:
             s_m = st.selectbox("Escolha", lista_nomes)
             p_d = df[df['nome'] == s_m].iloc[0]
@@ -148,16 +139,13 @@ else:
                 with c1:
                     e_d = st.text_input("Nascimento", value=p_d.get('nascimento',''))
                     e_t = st.text_input("Telefone", value=p_d.get('telefone',''))
-                    e_e = st.text_input("E-mail", value=p_d.get('email',''))
                 with c2:
                     e_r = st.text_input("Rua", value=p_d.get('rua',''))
-                    e_u = st.text_input("Nº", value=p_d.get('num',''))
-                    e_c = st.text_input("Complemento", value=p_d.get('complemento',''))
                     e_ce = st.text_input("CEP", value=p_d.get('cep',''))
                 
                 b1, b2 = st.columns(2)
                 if b1.form_submit_button("💾 ATUALIZAR"):
-                    up = [s_m, e_d, p_d.get('ascendente',''), e_t, e_e, e_r, e_u, e_c, p_d.get('bairro',''), e_ce]
+                    up = [s_m, e_d, p_d.get('ascendente',''), e_t, "", e_r, p_d.get('num',''), p_d.get('complemento',''), "", e_ce]
                     requests.post(WEBAPP_URL, json={"action": "edit", "row": idx, "data": up}); st.rerun()
                 if b2.form_submit_button("🗑️ EXCLUIR"):
                     requests.post(WEBAPP_URL, json={"action": "edit", "row": idx, "data": [""] * 10}); st.rerun()
