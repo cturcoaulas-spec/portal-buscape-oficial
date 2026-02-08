@@ -5,7 +5,7 @@ import requests
 # CONFIGURAÇÃO DE INTERFACE
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="centered")
 
-# URL DO SEU APP SCRIPT (Mantenha a sua última versão aqui)
+# LINKS DE CONEXÃO
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzDd11VRMTQSvd3MDNZgok8qV4o_y4s0KhBaAJQFC0HZtg36mpydMTVmPQXg34lZp_RCQ/exec"
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 
@@ -26,7 +26,6 @@ else:
     def carregar_dados():
         try:
             df = pd.read_csv(CSV_URL, dtype=str).fillna("")
-            # Padroniza os nomes das colunas para evitar o erro de KeyError
             df.columns = [c.strip().lower() for c in df.columns]
             return df
         except:
@@ -39,40 +38,59 @@ else:
 
     with aba1:
         st.subheader("Lista da Família")
-        st.dataframe(df, use_container_width=True)
+        if not df.empty:
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.info("Aguardando dados da nuvem...")
 
     with aba2:
         st.subheader("Novo Cadastro")
-        with st.form("form_novo"):
-            nome = st.text_input("Nome Completo")
-            nasc = st.text_input("Nascimento")
-            tel = st.text_input("Telefone")
-            # BOTÃO QUE ESTAVA FALTANDO:
-            enviar_novo = st.form_submit_button("SALVAR NOVO")
-            if enviar_novo:
-                dados = [nome, nasc, "", tel, "", "", "", "", "", ""]
-                requests.post(WEBAPP_URL, json={"action": "append", "data": dados})
-                st.success("Adicionado!")
-                st.rerun()
+        with st.form("form_novo", clear_on_submit=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                nome = st.text_input("Nome Completo")
+                nasc = st.text_input("Nascimento")
+                opcoes_asc = ["Raiz"] + sorted(df['nome'].unique().tolist()) if not df.empty else ["Raiz"]
+                asc = st.selectbox("Ascendente", opcoes_asc)
+                tel = st.text_input("Telefone")
+                mail = st.text_input("E-mail")
+            with c2:
+                rua = st.text_input("Rua")
+                num = st.text_input("Nº")
+                comp = st.text_input("Complemento")
+                bairro = st.text_input("Bairro")
+                cep = st.text_input("CEP")
+            
+            if st.form_submit_button("SALVAR NOVO"):
+                if nome:
+                    dados = [nome, nasc, asc, tel, mail, rua, num, comp, bairro, cep]
+                    requests.post(WEBAPP_URL, json={"action": "append", "data": dados})
+                    st.success(f"{nome} adicionado com sucesso!")
+                    st.rerun()
 
     with aba3:
         st.subheader("Editar Cadastro")
         if not df.empty:
-            nome_sel = st.selectbox("Escolha quem editar", df['nome'].tolist())
+            nome_sel = st.selectbox("Escolha quem editar", sorted(df['nome'].tolist()))
             pessoa = df[df['nome'] == nome_sel].iloc[0]
-            # Pegamos a linha (index + 2 para o Google Sheets)
             idx = df.index[df['nome'] == nome_sel].tolist()[0] + 2
 
             with st.form("form_editar"):
-                # Usamos .get() ou o nome minúsculo para evitar o erro de KeyError
-                edit_nasc = st.text_input("Nascimento", value=pessoa.get('nascimento', ''))
-                edit_tel = st.text_input("Telefone", value=pessoa.get('telefone', ''))
+                col1, col2 = st.columns(2)
+                with col1:
+                    ed_nasc = st.text_input("Nascimento", value=pessoa.get('nascimento', ''))
+                    ed_asc = st.text_input("Ascendente", value=pessoa.get('ascendente', ''))
+                    ed_tel = st.text_input("Telefone", value=pessoa.get('telefone', ''))
+                    ed_mail = st.text_input("E-mail", value=pessoa.get('email', ''))
+                with col2:
+                    ed_rua = st.text_input("Rua", value=pessoa.get('rua', ''))
+                    ed_num = st.text_input("Nº", value=pessoa.get('num', ''))
+                    ed_comp = st.text_input("Complemento", value=pessoa.get('comp', ''))
+                    ed_bair = st.text_input("Bairro", value=pessoa.get('bairro', ''))
+                    ed_cep = st.text_input("CEP", value=pessoa.get('cep', ''))
                 
-                # BOTÃO QUE ESTAVA FALTANDO:
-                enviar_edit = st.form_submit_button("ATUALIZAR DADOS")
-                
-                if enviar_edit:
-                    dados_up = [nome_sel, edit_nasc, pessoa.get('ascendente',''), edit_tel, "", "", "", "", "", ""]
+                if st.form_submit_button("ATUALIZAR DADOS"):
+                    dados_up = [nome_sel, ed_nasc, ed_asc, ed_tel, ed_mail, ed_rua, ed_num, ed_comp, ed_bair, ed_cep]
                     requests.post(WEBAPP_URL, json={"action": "edit", "row": idx, "data": dados_up})
-                    st.success("Dados atualizados na nuvem!")
+                    st.success(f"Dados de {nome_sel} atualizados!")
                     st.rerun()
