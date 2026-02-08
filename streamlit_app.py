@@ -104,12 +104,10 @@ else:
         with tabs[0]: # 1. Membros (LIMPO: Sem linhas de aviso)
             sel_ids = []
             c_topo = st.container()
-            
             for i, r in df_m.iterrows():
                 col_sel, col_exp = st.columns([0.15, 3.85])
                 if col_sel.checkbox("", key=f"sel_{i}"):
                     sel_ids.append(i)
-                
                 with col_exp.expander(f"👤 {r['nome']} | 🎂 {r.get('nascimento','-')}"):
                     ci, cl = st.columns([3, 1])
                     with ci:
@@ -123,7 +121,6 @@ else:
                         if end_rua and end_rua != "-" and end_rua != "":
                             endereco_full = f"{end_rua}, {r.get('num','')}, {r.get('bairro','')}"
                             st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(endereco_full)}")
-            
             if sel_ids:
                 c_topo.download_button(
                     label="📥 BAIXAR PDF DOS SELECIONADOS",
@@ -139,16 +136,20 @@ else:
                 dt = str(r.get('nascimento',''))
                 if "/" in dt and int(dt.split('/')[1]) == m_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
 
-        with tabs[2]: # 3. Mural (MANTIDO EXATAMENTE IGUAL)
+        with tabs[2]: # 3. Mural (RESTAURADO BOTÃO LIMPAR)
             try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
             except: avs = ["Vazio", "Vazio", "Vazio"]
             cols = st.columns(3)
             for idx in range(3): cols[idx].warning(f"**Aviso {idx+1}**\n\n{avs[idx]}")
             with st.form("m_f"):
                 v1, v2, v3 = st.text_input("A1", avs[0]), st.text_input("A2", avs[1]), st.text_input("A3", avs[2])
-                if st.form_submit_button("💾 SALVAR MURAL"):
+                b_s, b_l = st.columns(2)
+                if b_s.form_submit_button("💾 SALVAR MURAL"):
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]})
                     st.success("Salvo!"); time.sleep(1); st.rerun()
+                if b_l.form_submit_button("🗑️ LIMPAR MURAL"):
+                    requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]})
+                    st.warning("Mural limpo!"); time.sleep(1); st.rerun()
 
         with tabs[3]: # 4. Cadastrar
             with st.form("c_f", clear_on_submit=True):
@@ -184,7 +185,6 @@ else:
                             eb = st.text_input("Bairro", value=m.get('bairro',''))
                             tipo_vinc = st.radio("Novo Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True, key="edit_vinc")
                             ref_vinc = st.selectbox("Nova Referência", ["Raiz"] + nomes_lista, key="edit_ref")
-                        
                         col_btn1, col_btn2 = st.columns(2)
                         if col_btn1.form_submit_button("💾 SALVAR ALTERAÇÕES"):
                             novo_vinc_final = f"{tipo_vinc} {ref_vinc}" if ref_vinc != "Raiz" else "Raiz"
@@ -194,7 +194,7 @@ else:
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
                             st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (MANTEVE: Cônjuge em amarelo)
+        with tabs[5]: # 6. Árvore
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
