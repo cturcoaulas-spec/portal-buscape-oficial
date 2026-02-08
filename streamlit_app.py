@@ -2,13 +2,12 @@ import streamlit as st
 import pandas as pd
 import requests
 import re
-import time
 import unicodedata
 from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO MOBILE E ESTILO (BLINDADO)
+# 1. CONFIGURAÇÃO MOBILE E ESTILO
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
 st.markdown("""
@@ -82,23 +81,31 @@ else:
             for n in niver_hoje: st.success(f"🎂 Hoje: {n}")
         else: st.info("Sem aniversários hoje")
         
-        # --- BOTÃO DO MANUAL (DENTRO DA SIDEBAR) ---
         st.divider()
         if st.button("📄 Gerar Guia de Uso (PDF)"):
             pdf_m = FPDF(); pdf_m.add_page()
             pdf_m.set_font("Arial", "B", 16); pdf_m.cell(200, 10, "Manual Familia Buscape", ln=True, align="C"); pdf_m.ln(10)
-            pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "1. Responsabilidade Coletiva", ln=True)
-            pdf_m.set_font("Arial", "", 11); pdf_m.multi_cell(0, 7, "Este e um espaco da Familia Buscape. O que voce edita ou apaga muda para todos. Use com carinho e mantenha seus dados (telefone, endereco e nascimento) sempre atualizados para facilitar nossos encontros!")
-            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "2. Como Instalar no Celular", ln=True)
-            pdf_m.set_font("Arial", "", 11); pdf_m.multi_cell(0, 7, "Android: No Chrome, clique nos 3 pontinhos e 'Instalar aplicativo'.\niPhone: No Safari, clique no icone de partilhar e 'Adicionar a Tela de Inicio'.")
-            pdf_m.ln(10); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, f"SENHA DE ACESSO: buscape2026", ln=True, align="C")
+            
+            sections = [
+                ("1. Boas-vindas!", "Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao."),
+                ("2. O que sao as Abas?", "Membros: Nossa agenda viva.\nNiver: Onde celebramos a vida a cada mes.\nMural: Nosso quadro de avisos coletivo.\nNovo: Para a familia crescer.\nGerenciar: Para manter tudo organizado.\nArvore: Onde vemos quem somos e de onde viemos."),
+                ("3. Integracoes Magicas", "Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!"),
+                ("4. Responsabilidade", "Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!"),
+                ("5. No seu Telemovel", "Android (Chrome): clique nos 3 pontinhos e 'Instalar'.\niPhone (Safari): clique na seta de partilhar e 'Ecra principal'.")
+            ]
+            
+            for title, body in sections:
+                pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, title, ln=True)
+                pdf_m.set_font("Arial", "", 11); pdf_m.multi_cell(0, 7, body); pdf_m.ln(4)
+
+            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "SENHA DE ACESSO: buscape2026", ln=True, align="C")
             manual_out = pdf_m.output(dest='S').encode('latin-1')
             st.download_button("📥 BAIXAR MANUAL AGORA", manual_out, "Manual_Buscape.pdf")
             
         st.divider(); st.button("🚪 Sair", on_click=lambda: st.session_state.update({"logado": False}))
 
     st.title("🌳 Família Buscapé")
-    tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore"])
+    tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
     with tabs[0]: # Membros
         sel_ids = []; c_topo = st.container()
@@ -174,3 +181,31 @@ else:
                 dot += f'"{ref}" -> "{n}" [style={"dashed" if "Cônjuge" in v else "solid"}];'
             else: dot += f'"{n}" [fillcolor="#C8E6C9"];'
         st.graphviz_chart(dot + '}')
+
+    with tabs[6]: # 📖 Manual (NOVA ABA)
+        st.markdown("### 📖 Manual de Uso - Família Buscapé")
+        st.info("**1. Boas-vindas!**\nEste portal foi criado pela Valéria para ser o nosso ponto de encontro oficial. Aqui, nossa história e nossos contatos estão protegidos e sempre à mão.")
+        
+        st.markdown("---")
+        st.markdown("**2. O que são as Abas?**")
+        st.write("- **Membros:** Nossa agenda viva.")
+        st.write("- **Niver:** Onde celebramos a vida a cada mês.")
+        st.write("- **Mural:** Nosso quadro de avisos coletivo.")
+        st.write("- **Novo:** Para a família crescer.")
+        st.write("- **Gerenciar:** Para manter tudo organizado.")
+        st.write("- **Árvore:** Onde vemos quem somos e de onde viemos.")
+        
+        st.markdown("---")
+        st.markdown("**3. Integrações Mágicas**")
+        st.success("Clicando no botão de WhatsApp, você fala com o parente sem precisar salvar o número. Clicando no botão de Mapa, o GPS do seu telemóvel abre direto na porta da casa dele!")
+        
+        st.markdown("---")
+        st.markdown("**4. Responsabilidade**")
+        st.warning("Lembre-se: o que você apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!")
+        
+        st.markdown("---")
+        st.markdown("**5. No seu Telemóvel**")
+        st.markdown("- **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.")
+        st.markdown("- **iPhone (Safari):** clique na seta de partilhar e 'Ecrã principal'.")
+        
+        st.markdown(f"<div style='text-align:center; padding:20px; background:#f0f2f6; border-radius:10px;'><b>SENHA DE ACESSO:</b><br><h2 style='color:#ff4b4b;'>buscape2026</h2></div>", unsafe_allow_html=True)
