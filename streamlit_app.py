@@ -87,7 +87,7 @@ else:
         st.title("🌳 Família Buscapé")
         tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
-        with tabs[0]: # 1. Membros (BOTÃO DE MAPA VOLTOU!)
+        with tabs[0]: # 1. Membros
             for i, r in df_m.iterrows():
                 with st.expander(f"👤 {r['nome']} | 🎂 {r.get('nascimento','-')}"):
                     ci, cl = st.columns([3, 1])
@@ -98,7 +98,6 @@ else:
                     with cl:
                         t = limpar(r.get('telefone',''))
                         if len(t) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{t}")
-                        # VOLTA DO BOTÃO DE MAPA
                         end_rua = str(r.get('rua', '')).strip()
                         if end_rua and end_rua != "-" and end_rua != "":
                             endereco_full = f"{end_rua}, {r.get('num','')}, {r.get('bairro','')}"
@@ -131,7 +130,7 @@ else:
                 with c2:
                     ru = st.text_input("Rua"); nu = st.text_input("Nº"); ba = st.text_input("Bairro")
                     ce = st.text_input("CEP"); rc = st.selectbox("Referência", ["Raiz"] + nomes_lista, key="ref_novo")
-                if st.form_submit_button("💾 CADASTRAR NOVO MEMBRO"):
+                if st.form_submit_button("💾 SALVAR NOVO MEMBRO"):
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dc, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, em, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]})
                     st.success("Cadastrado!"); time.sleep(1); st.rerun()
 
@@ -166,14 +165,21 @@ else:
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
                             st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore
-            dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"];'
+        with tabs[5]: # 6. Árvore (CORRIGIDA: Cônjuge com cor e label)
+            st.subheader("🌳 Nossa Árvore")
+            dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
                 n, v = str(row['nome']), str(row.get('vinculo','Raiz'))
                 if " de " in v:
                     ref = v.split(" de ")[-1]
-                    dot += f'"{ref}" -> "{n}";'
-                elif v == "Raiz": dot += f'"{n}" [fillcolor="#C8E6C9"];'
+                    # Se for cônjuge, coloca cor amarela e escreve "Cônjuge" embaixo
+                    if "Cônjuge" in v:
+                        dot += f'"{n}" [fillcolor="#FFF9C4", label="{n}\\n(Cônjuge)"];'
+                        dot += f'"{ref}" -> "{n}" [style=dashed, constraint=false];'
+                    else:
+                        dot += f'"{ref}" -> "{n}" [style=solid];'
+                elif v == "Raiz": 
+                    dot += f'"{n}" [fillcolor="#C8E6C9"];'
             st.graphviz_chart(dot + '}')
 
         with tabs[6]: # 7. Manual
