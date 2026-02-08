@@ -8,7 +8,7 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO E ESTILO (MOBILE FIRST)
+# 1. CONFIGURAÇÃO MOBILE E ESTILO
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
 st.markdown("""
@@ -101,7 +101,7 @@ else:
         st.title("🌳 Família Buscapé")
         tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
-        with tabs[0]: # 1. Membros (SEM LINHAS DE AVISO)
+        with tabs[0]: # 1. Membros (LIMPO: Sem linhas de aviso)
             sel_ids = []
             c_topo = st.container()
             
@@ -139,7 +139,7 @@ else:
                 dt = str(r.get('nascimento',''))
                 if "/" in dt and int(dt.split('/')[1]) == m_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
 
-        with tabs[2]: # 3. Mural
+        with tabs[2]: # 3. Mural (MANTIDO EXATAMENTE IGUAL)
             try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
             except: avs = ["Vazio", "Vazio", "Vazio"]
             cols = st.columns(3)
@@ -194,7 +194,7 @@ else:
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
                             st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (MANTEVE: Cônjuge com cor amarela)
+        with tabs[5]: # 6. Árvore (MANTEVE: Cônjuge em amarelo)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
