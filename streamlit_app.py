@@ -8,7 +8,7 @@ from datetime import datetime
 from fpdf import FPDF
 import time
 
-# 1. CONFIGURAÇÃO BÁSICA (SEM CSS QUE PODE ESCONDER AS TELAS)
+# 1. CONFIGURAÇÃO BÁSICA
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
 # CONFIGURAÇÕES DE LINKS
@@ -23,13 +23,17 @@ def mask_tel(v):
     if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
     return n if n else "-"
 
-# 2. LOGICA DE LOGIN
+def mask_data(v):
+    n = limpar(str(v))
+    if len(n) == 8: return f"{n[:2]}/{n[2:4]}/{n[4:8]}"
+    return v
+
+# 2. LÓGICA DE LOGIN
 if 'logado' not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
-    st.write("Seja bem-vindo ao nosso espaço!")
     psw = st.text_input("Digite a senha da família:", type="password")
     if st.button("ACESSAR PORTAL"):
         if psw == "buscape2026":
@@ -49,8 +53,7 @@ else:
             df.columns = [norm(c) for c in df.columns]
             mapa = {'nome':'nome','nascimento':'nascimento','vinculo':'vinculo','ascendente':'vinculo','telefone':'telefone','email':'email','rua':'rua','num':'num','numero':'num','conjuge':'conjuge','conjugue':'conjuge','bairro':'bairro','cep':'cep'}
             return df.rename(columns=mapa)
-        except Exception as e:
-            st.error(f"Erro ao carregar dados: {e}")
+        except:
             return pd.DataFrame()
 
     df_todo = carregar()
@@ -63,81 +66,43 @@ else:
         hoje_dm = datetime.now().strftime("%d/%m")
         niver_hoje = [r['nome'] for _, r in df_m.iterrows() if str(r.get('nascimento','')).startswith(hoje_dm)]
         if niver_hoje:
-            for n in niver_hoje: st.success(f"🎂 Aniversário: {n}")
-        else:
-            st.info("Nenhum aniversário hoje.")
+            for n in niver_hoje: st.success(f"🎈 Hoje: {n}")
+        else: st.info("Sem aniversários hoje.")
         
         st.divider()
-        if st.button("📄 MANUAL DE USO (PDF)"):
+        if st.button("📄 MANUAL EM PDF"):
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
             pdf.cell(200, 10, "Manual do Usuario - Familia Buscape", ln=True, align="C")
             pdf.ln(10)
-            
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "1. BEM-VINDOS!", ln=True)
-            pdf.set_font("Arial", "", 11)
-            pdf.multi_cell(0, 7, "Este portal foi criado pela Valeria para unir a nossa familia. Aqui guardamos nossos contatos e nossa historia.")
-            
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "2. RESPONSABILIDADE", ln=True)
-            pdf.set_font("Arial", "", 11)
-            pdf.multi_cell(0, 7, "IMPORTANTE: Este e um sistema coletivo. O que voce edita ou apaga muda para TODOS. Use com carinho e preencha seus dados corretamente!")
-            
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "3. FUNCIONALIDADES", ln=True)
-            pdf.set_font("Arial", "", 11)
-            pdf.multi_cell(0, 7, "Membros: Veja contatos e use o GPS.\nNiver: Veja quem faz anos.\nMural: Avisos importantes.\nArvore: Nossa genealogia.")
-            
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "4. NO CELULAR", ln=True)
-            pdf.set_font("Arial", "", 11)
-            pdf.multi_cell(0, 7, "Android (Chrome): 3 pontinhos > Instalar aplicativo.\niPhone (Safari): Compartilhar > Adicionar a Tela de Inicio.")
+            pdf.set_font("Arial", "", 12)
+            pdf.multi_cell(0, 7, "Bem-vindos! Este e o nosso portal.\n\nRegra de Ouro: O que voce edita ou apaga muda para todos. Use com responsabilidade!\n\nNo Celular: Use a opcao 'Adicionar a tela de inicio' no seu navegador para criar o icone da arvore.")
+            st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1'), "Manual_Buscape.pdf")
 
-            st.download_button("📥 Baixar Manual PDF", pdf.output(dest='S').encode('latin-1'), "Manual_Buscape.pdf")
-
-        st.divider()
         if st.button("🚪 Sair"):
             st.session_state.logado = False
             st.rerun()
 
-    # --- ABAS PRINCIPAIS ---
+    # --- ABAS ---
     st.title("🌳 Família Buscapé")
     t1, t2, t3, t4, t5, t6 = st.tabs(["Membros", "Aniversários", "Mural", "Cadastrar", "Gerenciar", "Árvore"])
 
     with t1: # MEMBROS
-        st.subheader("Nossa Família")
         for i, r in df_m.iterrows():
             nome_at = r.get('nome','').strip()
             with st.expander(f"👤 {nome_at}"):
                 c_inf, c_btn = st.columns([3, 1])
                 with c_inf:
-                    # Lógica do Cônjuge
-                    conj = str(r.get('conjuge','')).strip()
-                    vinc = str(r.get('vinculo','')).strip()
-                    parc = conj if (conj and conj.lower() != "nenhum") else ""
-                    if not parc and "Cônjuge de" in vinc:
-                        parc = vinc.replace("Cônjuge de", "").strip()
-                    if not parc:
-                        busca = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
-                        if busca: parc = busca[0]
-                    
-                    if parc: st.write(f"💍 **Cônjuge:** {parc}")
                     st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))}")
-                    st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')}")
-                    st.write(f"🌳 **Vínculo:** {vinc}")
+                    st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})")
+                    st.write(f"🌳 **Vínculo:** {r.get('vinculo','-')}")
                 with c_btn:
-                    tel_limpo = limpar(r.get('telefone',''))
-                    if len(tel_limpo) >= 10:
-                        st.link_button("💬 Zap", f"https://wa.me/55{tel_limpo}")
-                    if r.get('rua'):
-                        st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{r.get('rua')},{r.get('num')}')}")
+                    tel_l = limpar(r.get('telefone',''))
+                    if len(tel_l) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{tel_l}")
+                    if r.get('rua'): st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{r.get('rua')},{r.get('num')}')}")
 
-    with t2: # ANIVERSARIOS
+    with t2: # NIVER
         mes_f = datetime.now().month
         st.subheader(f"🎂 Aniversariantes de {MESES_BR[mes_f]}")
         for _, r in df_m.iterrows():
@@ -146,50 +111,63 @@ else:
                 st.info(f"🎈 Dia {d.split('/')[0]} - {r['nome']}")
 
     with t3: # MURAL
-        st.subheader("📢 Mural de Recados")
         try:
-            m1 = df_todo.iloc[0].get('email','Recado 1')
-            m2 = df_todo.iloc[0].get('rua','Recado 2')
-            m3 = df_todo.iloc[0].get('num','Recado 3')
-        except:
-            m1, m2, m3 = "Vazio", "Vazio", "Vazio"
-        st.warning(f"1️⃣ {m1}\n\n2️⃣ {m2}\n\n3️⃣ {m3}")
-        with st.form("form_mural"):
+            m1 = df_todo.iloc[0].get('email','')
+            m2 = df_todo.iloc[0].get('rua','')
+            m3 = df_todo.iloc[0].get('num','')
+        except: m1, m2, m3 = "","",""
+        with st.form("fm"):
             n1 = st.text_input("Aviso 1", m1)
             n2 = st.text_input("Aviso 2", m2)
             n3 = st.text_input("Aviso 3", m3)
-            if st.form_submit_button("💾 Salvar Avisos"):
+            if st.form_submit_button("💾 Salvar Mural"):
                 requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",n1, n2, n3, "","",""]})
-                st.success("Salvo!")
                 st.rerun()
 
-    with t4: # CADASTRAR
-        st.subheader("➕ Novo Membro")
-        with st.form("form_cad"):
-            nome_n = st.text_input("Nome Completo *")
-            nasc_n = st.text_input("Nascimento (DD/MM/AAAA) *")
-            tel_n = st.text_input("Telefone")
-            vinc_tipo = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True)
-            vinc_ref = st.selectbox("Referência", ["Raiz"] + nomes_lista)
-            if st.form_submit_button("💾 Salvar"):
-                v_total = f"{vinc_tipo} {vinc_ref}" if vinc_ref != "Raiz" else "Raiz"
-                requests.post(WEBAPP_URL, json={"action":"append", "data":[nome_n, nasc_n, v_total, tel_n, "", "", "", "", "", ""]})
-                st.success("Adicionado!")
+    with t4: # CADASTRAR (RESTAURADO)
+        st.subheader("➕ Novo Cadastro")
+        with st.form("fc", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                nome_c = st.text_input("Nome Completo *")
+                nasc_c = st.text_input("Nascimento (DDMMAAAA) *")
+                tel_c = st.text_input("Telefone")
+                vin_t = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True)
+                vin_r = st.selectbox("Referência", ["Raiz"] + nomes_lista)
+            with col2:
+                email_c = st.text_input("E-mail")
+                rua_c = st.text_input("Rua")
+                num_c = st.text_input("Número")
+                bai_c = st.text_input("Bairro")
+                cep_c = st.text_input("CEP")
+            if st.form_submit_button("💾 Salvar Novo"):
+                v_final = f"{vin_t} {vin_r}" if vin_r != "Raiz" else "Raiz"
+                requests.post(WEBAPP_URL, json={"action":"append", "data":[nome_c, mask_data(nasc_c), v_final, mask_tel(tel_c), email_c, rua_c, num_c, vin_r if "Cônjuge" in vin_t else "", bai_c, cep_c]})
                 st.rerun()
 
-    with t5: # GERENCIAR
+    with t5: # GERENCIAR (RESTAURADO)
         st.subheader("✏️ Editar ou Excluir")
-        quem = st.selectbox("Escolha alguém", ["--"] + nomes_lista)
+        quem = st.selectbox("Selecione para alterar", ["--"] + nomes_lista)
         if quem != "--":
-            m_dados = df_m[df_m['nome'] == quem].iloc[0]
+            m_d = df_m[df_m['nome'] == quem].iloc[0]
             linha = df_todo.index[df_todo['nome'] == quem].tolist()[0] + 2
-            with st.form("form_edit"):
-                new_tel = st.text_input("Telefone", m_dados['telefone'])
-                new_rua = st.text_input("Rua", m_dados['rua'])
-                if st.form_submit_button("💾 Atualizar"):
-                    requests.post(WEBAPP_URL, json={"action":"edit", "row":linha, "data":[quem, m_dados['nascimento'], m_dados['vinculo'], new_tel, "", new_rua, "", "", "", ""]})
+            with st.form("fe"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.write(f"**Editando:** {quem}")
+                    e_nasc = st.text_input("Nascimento", m_d['nascimento'])
+                    e_tel = st.text_input("Telefone", m_d['telefone'])
+                with c2:
+                    e_rua = st.text_input("Rua", m_d['rua'])
+                    e_num = st.text_input("Número", m_d['num'])
+                    e_bai = st.text_input("Bairro", m_d.get('bairro',''))
+                    e_cep = st.text_input("CEP", m_d.get('cep',''))
+                
+                b_edit, b_del = st.columns(2)
+                if b_edit.form_submit_button("💾 Atualizar"):
+                    requests.post(WEBAPP_URL, json={"action":"edit", "row":linha, "data":[quem, e_nasc, m_d['vinculo'], e_tel, m_d['email'], e_rua, e_num, m_d.get('conjuge',''), e_bai, e_cep]})
                     st.rerun()
-                if st.form_submit_button("🗑️ EXCLUIR"):
+                if b_del.form_submit_button("🗑️ EXCLUIR"):
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":linha, "data":[""]*10})
                     st.rerun()
 
@@ -201,6 +179,5 @@ else:
             if v != "Raiz":
                 ref = v.split(" de ")[-1] if " de " in v else v
                 dot += f'"{ref}" -> "{n}";'
-            else:
-                dot += f'"{n}" [fillcolor="#C8E6C9"];'
+            else: dot += f'"{n}" [fillcolor="#C8E6C9"];'
         st.graphviz_chart(dot + '}')
