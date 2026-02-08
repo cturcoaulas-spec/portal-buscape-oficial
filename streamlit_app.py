@@ -89,9 +89,9 @@ else:
             sections = [
                 ("1. Boas-vindas!", "Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao."),
                 ("2. O que sao as Abas?", "Membros: Nossa agenda viva.\nNiver: Onde celebramos a vida a cada mes.\nMural: Nosso quadro de avisos coletivo.\nNovo: Para a familia crescer.\nGerenciar: Para manter tudo organizado.\nArvore: Onde vemos quem somos e de onde viemos."),
-                ("3. Integracoes Magicas", "Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!"),
-                ("4. Responsabilidade", "Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!"),
-                ("5. No seu Telemovel", "Android (Chrome): clique nos 3 pontinhos e 'Instalar'.\niPhone (Safari): clique na seta de partilhar e 'Ecra principal'.")
+                ("3. Integracoes Magicas", "WhatsApp: Fale com o parente sem precisar salvar o numero.\nMapa: O GPS do seu telemovel abre direto na porta da casa dele!"),
+                ("4. Responsabilidade", "Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho!"),
+                ("5. No seu Telemovel", "Android: No Chrome, clique nos 3 pontinhos e 'Adicionar a tela inicial'.\niPhone: No Safari, clique no icone de partilhar e 'Adicionar a Tela de Inicio'.")
             ]
             
             for title, body in sections:
@@ -100,7 +100,7 @@ else:
 
             pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "SENHA DE ACESSO: buscape2026", ln=True, align="C")
             manual_out = pdf_m.output(dest='S').encode('latin-1')
-            st.download_button("📥 BAIXAR MANUAL AGORA", manual_out, "Manual_Buscape.pdf")
+            st.download_button("📥 BAIXAR MANUAL ATUALIZADO", manual_out, "Manual_Buscape.pdf")
             
         st.divider(); st.button("🚪 Sair", on_click=lambda: st.session_state.update({"logado": False}))
 
@@ -182,7 +182,7 @@ else:
             else: dot += f'"{n}" [fillcolor="#C8E6C9"];'
         st.graphviz_chart(dot + '}')
 
-    with tabs[6]: # 📖 Manual (NOVA ABA)
+    with tabs[6]: # 📖 Manual Atualizado
         st.markdown("### 📖 Manual de Uso - Família Buscapé")
         st.info("**1. Boas-vindas!**\nEste portal foi criado pela Valéria para ser o nosso ponto de encontro oficial. Aqui, nossa história e nossos contatos estão protegidos e sempre à mão.")
         
@@ -197,15 +197,19 @@ else:
         
         st.markdown("---")
         st.markdown("**3. Integrações Mágicas**")
-        st.success("Clicando no botão de WhatsApp, você fala com o parente sem precisar salvar o número. Clicando no botão de Mapa, o GPS do seu telemóvel abre direto na porta da casa dele!")
+        st.success("WhatsApp: Fale com o parente sem precisar salvar o número. Mapa: O GPS do seu telemóvel abre direto na porta da casa dele!")
         
         st.markdown("---")
         st.markdown("**4. Responsabilidade**")
-        st.warning("Lembre-se: o que você apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!")
+        st.warning("Lembre-se: o que você apaga aqui, apaga para todos. Use com carinho!")
         
         st.markdown("---")
-        st.markdown("**5. No seu Telemóvel**")
-        st.markdown("- **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.")
-        st.markdown("- **iPhone (Safari):** clique na seta de partilhar e 'Ecrã principal'.")
+        st.markdown("**5. Como colocar na tela do Celular**")
+        st.markdown("""
+        Se quiser o ícone da árvore direto na tela do seu celular para facilitar o acesso:
+        
+        - **No Android (Chrome):** Clique nos **3 pontinhos** no canto superior direito e escolha a opção **'Adicionar à tela inicial'**.
+        - **No iPhone (Safari):** Clique no ícone de **compartilhar** (quadradinho com uma seta para cima) e procure por **'Adicionar à Tela de Início'**.
+        """)
         
         st.markdown(f"<div style='text-align:center; padding:20px; background:#f0f2f6; border-radius:10px;'><b>SENHA DE ACESSO:</b><br><h2 style='color:#ff4b4b;'>buscape2026</h2></div>", unsafe_allow_html=True)
