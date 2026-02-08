@@ -73,7 +73,7 @@ else:
     df_m = df_todo[df_todo['nome'].str.strip() != ""].sort_values(by='nome').copy()
     nomes_lista = sorted([n.strip() for n in df_m['nome'].unique().tolist() if n.strip()])
 
-    # --- SIDEBAR (NOTIFICAÇÕES RESTAURADAS) ---
+    # --- SIDEBAR (NOTIFICAÇÕES ATIVAS) ---
     with st.sidebar:
         st.title("🔔 Notificações")
         hoje_dm = datetime.now().strftime("%d/%m")
@@ -87,7 +87,7 @@ else:
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Aniversários", "📢 Mural", "➕ Cadastrar", "✏️ Gerenciar"])
 
-    # --- TAB 1: MEMBROS (LÓGICA DE CÔNJUGE E VÍNCULO CORRIGIDA) ---
+    # --- TAB 1: MEMBROS (LÓGICA FINAL DE RECIPROCIDADE) ---
     with tabs[0]:
         sel_ids = []
         c_topo = st.container()
@@ -100,27 +100,31 @@ else:
             with col_exp.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    # LÓGICA DE CÔNJUGE: Fim do FALSE e Reciprocidade André/Afonso
+                    # RECIPROCIDADE INTELIGENTE (ANDRÉ <-> AFONSO)
                     conj_bruto = str(r.get('conjuge','')).strip()
                     vinc_bruto = str(r.get('vinculo','')).strip()
                     
-                    # Procura se alguém citou este membro como cônjuge
-                    quem_me_citou = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
-                    
                     parceiro = ""
-                    if conj_bruto and conj_bruto.lower() not in ["", "nan", "false", "0"]:
+                    # 1. Verifica campo direto (Limpando FALSE/nan)
+                    if conj_bruto.lower() not in ["", "nan", "false", "0", "none"]:
                         parceiro = conj_bruto
-                    elif "Cônjuge de" in vinc_bruto:
+                    # 2. Verifica se o vínculo diz "Cônjuge de..."
+                    if not parceiro and "Cônjuge de" in vinc_bruto:
                         parceiro = vinc_bruto.replace("Cônjuge de", "").strip()
-                    elif quem_me_citou:
-                        parceiro = quem_me_citou[0]
+                    # 3. RECIPROCIDADE: Se alguém apontou este nome como cônjuge, ele ganha a aliança
+                    if not parceiro:
+                        procura_recip = df_m[
+                            (df_m['conjuge'].str.strip() == nome_at) | 
+                            (df_m['vinculo'].str.contains(f"Cônjuge de {nome_at}", case=False, na=False))
+                        ]['nome'].tolist()
+                        if procura_recip: parceiro = procura_recip[0]
 
                     if parceiro and parceiro != nome_at:
                         st.write(f"💍 **Cônjuge:** {parceiro}")
                     else:
                         st.write(f"**Cônjuge:** Nenhum")
                     
-                    # VÍNCULO AUTOMÁTICO: "Filho(a) de"
+                    # PREFIXO FILHO(A) DE AUTOMÁTICO
                     vinc_final = vinc_bruto
                     if vinc_bruto and vinc_bruto != "Raiz" and "Cônjuge" not in vinc_bruto and "Filho" not in vinc_bruto:
                         vinc_final = f"Filho(a) de {vinc_bruto}"
@@ -138,17 +142,17 @@ else:
             pdf_data = gerar_pdf(df_m.loc[sel_ids])
             c_topo.download_button("📥 BAIXAR PDF DOS SELECIONADOS", pdf_data, "familia_buscape.pdf")
 
-    # --- DEMAIS ABAS MANTIDAS INTACTAS ---
+    # --- DEMAIS ABAS (MANTIDAS INTACTAS E PROTEGIDAS) ---
     with tabs[1]:
         m_at = datetime.now().month
         st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
-        encontrou = False
+        tem_niver = False
         for _, r in df_m.iterrows():
             dt = str(r.get('nascimento',''))
             if "/" in dt and int(dt.split('/')[1]) == m_at:
                 st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
-                encontrou = True
-        if not encontrou: st.write("Nenhum aniversariante este mês.")
+                tem_niver = True
+        if not tem_niver: st.write("Nenhum aniversariante este mês.")
 
     with tabs[2]:
         st.subheader("📢 Mural de Avisos")
@@ -171,8 +175,7 @@ else:
                 v_c = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True)
                 r_c = st.selectbox("Referência *", ["Raiz"] + nomes_lista)
             with col_b:
-                m_c, ru_c, nu_c = st.text_input("E-mail"), st.text_input("Rua"), st.text_input("Nº")
-                ba_c, ce_c = st.text_input("Bairro"), st.text_input("CEP")
+                m_c, ru_c, nu_c = st.text_input("E-mail"), st.text_input("Rua"), st.text_input("Nº"), st.text_input("Bairro"), st.text_input("CEP")
             if st.form_submit_button("💾 SALVAR CADASTRO"):
                 if n_c.strip().lower() in [n.lower() for n in nomes_lista]: st.error("❌ Nome já existe!")
                 elif not n_c or not d_c: st.error("⚠️ Preencha Nome e Nascimento!")
