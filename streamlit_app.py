@@ -60,7 +60,6 @@ else:
     df_m = df_todo[df_todo['nome'].str.strip() != ""].sort_values(by='nome').copy()
     nomes_lista = sorted([n.strip() for n in df_m['nome'].unique().tolist() if n.strip()])
 
-    # --- MENU LATERAL ---
     with st.sidebar:
         st.header("🎂 Notificações")
         hoje_dm = datetime.now().strftime("%d/%m")
@@ -68,18 +67,7 @@ else:
         if niver_hoje:
             for n in niver_hoje: st.success(f"🎈 Hoje: {n}")
         else: st.info("Sem aniversários hoje.")
-        
         st.divider()
-        if st.button("📄 MANUAL EM PDF"):
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(200, 10, "Manual do Usuario - Familia Buscape", ln=True, align="C")
-            pdf.ln(10)
-            pdf.set_font("Arial", "", 12)
-            pdf.multi_cell(0, 7, "Bem-vindos! Este e o nosso portal.\n\nRegra de Ouro: O que voce edita ou apaga muda para todos. Use com responsabilidade!\n\nNo Celular: Use a opcao 'Adicionar a tela de inicio' no seu navegador para criar o icone da arvore.")
-            st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1'), "Manual_Buscape.pdf")
-
         if st.button("🚪 Sair"):
             st.session_state.logado = False
             st.rerun()
@@ -124,7 +112,7 @@ else:
                 requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",n1, n2, n3, "","",""]})
                 st.rerun()
 
-    with t4: # CADASTRAR (RESTAURADO)
+    with t4: # CADASTRAR
         st.subheader("➕ Novo Cadastro")
         with st.form("fc", clear_on_submit=True):
             col1, col2 = st.columns(2)
@@ -145,30 +133,41 @@ else:
                 requests.post(WEBAPP_URL, json={"action":"append", "data":[nome_c, mask_data(nasc_c), v_final, mask_tel(tel_c), email_c, rua_c, num_c, vin_r if "Cônjuge" in vin_t else "", bai_c, cep_c]})
                 st.rerun()
 
-    with t5: # GERENCIAR (RESTAURADO)
-        st.subheader("✏️ Editar ou Excluir")
-        quem = st.selectbox("Selecione para alterar", ["--"] + nomes_lista)
+    with t5: # GERENCIAR (CONSERTADA)
+        st.subheader("✏️ Editar ou Excluir Familiar")
+        quem = st.selectbox("Escolha quem você quer alterar:", ["--"] + nomes_lista)
         if quem != "--":
             m_d = df_m[df_m['nome'] == quem].iloc[0]
             linha = df_todo.index[df_todo['nome'] == quem].tolist()[0] + 2
+            
             with st.form("fe"):
+                st.info(f"Alterando dados de: **{quem}**")
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.write(f"**Editando:** {quem}")
-                    e_nasc = st.text_input("Nascimento", m_d['nascimento'])
-                    e_tel = st.text_input("Telefone", m_d['telefone'])
+                    ed_nasc = st.text_input("Data de Nascimento", m_d.get('nascimento',''))
+                    ed_tel = st.text_input("Telefone", m_d.get('telefone',''))
+                    ed_email = st.text_input("E-mail", m_d.get('email',''))
+                    ed_vinculo = st.text_input("Vínculo (Texto)", m_d.get('vinculo',''))
                 with c2:
-                    e_rua = st.text_input("Rua", m_d['rua'])
-                    e_num = st.text_input("Número", m_d['num'])
-                    e_bai = st.text_input("Bairro", m_d.get('bairro',''))
-                    e_cep = st.text_input("CEP", m_d.get('cep',''))
+                    ed_rua = st.text_input("Rua", m_d.get('rua',''))
+                    ed_num = st.text_input("Número", m_d.get('num',''))
+                    ed_bai = st.text_input("Bairro", m_d.get('bairro',''))
+                    ed_cep = st.text_input("CEP", m_d.get('cep',''))
+                
+                ed_conj = st.text_input("Cônjuge (Se houver)", m_d.get('conjuge',''))
                 
                 b_edit, b_del = st.columns(2)
-                if b_edit.form_submit_button("💾 Atualizar"):
-                    requests.post(WEBAPP_URL, json={"action":"edit", "row":linha, "data":[quem, e_nasc, m_d['vinculo'], e_tel, m_d['email'], e_rua, e_num, m_d.get('conjuge',''), e_bai, e_cep]})
+                if b_edit.form_submit_button("💾 ATUALIZAR DADOS"):
+                    dados_editados = [quem, ed_nasc, ed_vinculo, ed_tel, ed_email, ed_rua, ed_num, ed_conj, ed_bai, ed_cep]
+                    requests.post(WEBAPP_URL, json={"action":"edit", "row":linha, "data":dados_editados})
+                    st.success("Dados atualizados com sucesso!")
+                    time.sleep(1)
                     st.rerun()
-                if b_del.form_submit_button("🗑️ EXCLUIR"):
+                
+                if b_del.form_submit_button("🗑️ EXCLUIR DEFINITIVAMENTE"):
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":linha, "data":[""]*10})
+                    st.warning("Membro excluído.")
+                    time.sleep(1)
                     st.rerun()
 
     with t6: # ARVORE
