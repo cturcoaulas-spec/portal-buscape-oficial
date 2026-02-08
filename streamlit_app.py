@@ -8,7 +8,7 @@ from datetime import datetime
 # CONFIGURAÇÃO
 st.set_page_config(page_title="Portal Família Buscapé", page_icon="🌳", layout="wide")
 
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzDd11VRMTQSvd3MDNZgok8qV4o_y4s0KhBaAJQFC0HZtg36mpydMTVmPQXg34lZp_RCQ/exec"
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJjlcMpJoxoO05lilysWJaj_udqeXqvfYFgzvWPlC-Omw/exec"
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 
 # --- FUNÇÕES ---
@@ -71,7 +71,7 @@ else:
                             st.link_button("💬 WhatsApp", f"https://wa.me/55{tel_puro}")
                             st.link_button("📞 Ligar", f"tel:+55{tel_puro}")
 
-    # --- TAB 2: AGENDA ---
+    # --- TAB 2: AGENDA (ANIVERSARIANTES) ---
     with t2:
         st.subheader("🎂 Aniversariantes do Mês")
         mes_atual = datetime.now().strftime("%m")
@@ -92,13 +92,13 @@ else:
     with t3:
         st.subheader("Novo Integrante")
         with st.form("form_novo", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            with col1:
+            c1, c2 = st.columns(2)
+            with c1:
                 f_nome = st.text_input("Nome Completo")
                 f_nasc = st.text_input("Nascimento (DDMMAAAA)")
                 f_asc = st.selectbox("Ascendente", ["Raiz"] + lista_nomes)
                 f_tel = st.text_input("Telefone (DDD + Número)")
-            with col2:
+            with c2:
                 f_mail = st.text_input("E-mail")
                 f_rua = st.text_input("Rua")
                 f_num = st.text_input("Número")
@@ -109,4 +109,42 @@ else:
                 if f_nome:
                     dados = [f_nome, aplicar_mascara_data(f_nasc), f_asc, aplicar_mascara_tel(f_tel), f_mail, f_rua, f_num, "", f_bair, f_cep]
                     requests.post(WEBAPP_URL, json={"action": "append", "data": dados})
-                    st.success("✅
+                    st.success("✅ Salvo!")
+                    st.rerun()
+
+    # --- TAB 4: EDITAR ---
+    with t4:
+        st.subheader("Gerenciar Dados")
+        if lista_nomes:
+            sel = st.selectbox("Selecione para alterar", lista_nomes)
+            p = df[df['nome'] == sel].iloc[0]
+            idx = df.index[df['nome'] == sel].tolist()[0] + 2
+            
+            with st.form("form_edit"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    e_nasc = st.text_input("Nascimento", value=p.get('nascimento',''))
+                    lista_asc_edit = ["Raiz"] + [n for n in lista_nomes if n != sel]
+                    asc_atual = p.get('ascendente','Raiz')
+                    idx_asc = lista_asc_edit.index(asc_atual) if asc_atual in lista_asc_edit else 0
+                    e_asc = st.selectbox("Ascendente", lista_asc_edit, index=idx_asc)
+                    e_tel = st.text_input("Telefone", value=p.get('telefone',''))
+                with c2:
+                    e_mail = st.text_input("E-mail", value=p.get('email',''))
+                    e_ru = st.text_input("Rua", value=p.get('rua',''))
+                    e_nu = st.text_input("Nº", value=p.get('num',''))
+                    e_ba = st.text_input("Bairro", value=p.get('bairro',''))
+                    e_ce = st.text_input("CEP", value=p.get('cep',''))
+                
+                b1, b2 = st.columns(2)
+                if b1.form_submit_button("💾 SALVAR ALTERAÇÕES"):
+                    up = [sel, e_nasc, e_asc, e_tel, e_mail, e_ru, e_nu, "", e_ba, e_ce]
+                    requests.post(WEBAPP_URL, json={"action": "edit", "row": idx, "data": up})
+                    st.success("✅ Atualizado!")
+                    st.rerun()
+                if b2.form_submit_button("🗑️ EXCLUIR"):
+                    requests.post(WEBAPP_URL, json={"action": "edit", "row": idx, "data": [""] * 10})
+                    st.warning("Removido.")
+                    st.rerun()
+
+    st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"logado": False}))
