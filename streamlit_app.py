@@ -64,24 +64,30 @@ else:
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Aniversários", "📢 Mural", "➕ Cadastrar", "✏️ Gerenciar"])
 
-    # --- TAB 1: MEMBROS (AJUSTADA) ---
+    # --- TAB 1: MEMBROS (UNICA MEXIDA) ---
     with tabs[0]:
         for i, r in df_m.iterrows():
-            # Título com Bolo (Precavido)
-            with st.expander(f"👤 {r.get('nome','-')} | 🎂 {r.get('nascimento','-')}"):
+            nome_atual = r.get('nome','').strip()
+            with st.expander(f"👤 {nome_atual} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    # Ícone Aliança/X no campo Cônjuge
-                    vinc_texto = str(r.get('ascendente',''))
-                    conj_val = str(r.get('conjuge','')).strip()
+                    # LÓGICA DE RECIPROCIDADE DE CÔNJUGE
+                    vinc_original = str(r.get('ascendente',''))
+                    conj_na_planilha = str(r.get('conjuge','')).strip()
                     
-                    if "Cônjuge" in vinc_texto or (conj_val != "" and conj_val.lower() != "nan"):
-                        st.write(f"💍 **Cônjuge:** {conj_val if conj_val else 'Sim'}")
+                    # Procura se alguém na família listou este membro como cônjuge
+                    quem_me_tem_como_conjuge = df_m[df_m['conjuge'].str.strip() == nome_atual]['nome'].tolist()
+                    
+                    # Define se exibe Aliança ou X
+                    if "Cônjuge" in vinc_original or conj_na_planilha != "" or quem_me_tem_como_conjuge:
+                        # Pega o nome do parceiro(a)
+                        parceiro = conj_na_planilha if conj_val != "" else (quem_me_tem_como_conjuge[0] if quem_me_tem_como_conjuge else "Sim")
+                        st.write(f"💍 **Cônjuge:** {parceiro}")
                     else:
                         st.write(f"❌ **Cônjuge:** Nenhum")
                     
-                    # Vínculo detalhado como pedido
-                    st.write(f"📞 **Tel:** {r.get('telefone','-')} | 🌳 **Vínculo:** {vinc_texto}")
+                    # Exibição do Vínculo (Sempre mostrando o parentesco completo)
+                    st.write(f"📞 **Tel:** {r.get('telefone','-')} | 🌳 **Vínculo:** {vinc_original}")
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})")
                     st.write(f"✉️ **E-mail:** {r.get('email','-')}")
                 with cl:
@@ -90,7 +96,7 @@ else:
                         st.link_button("💬 WhatsApp", f"https://wa.me/55{t_c}")
                         st.link_button("📞 Ligar", f"tel:{t_c}")
 
-    # --- TAB 2: ANIVERSÁRIOS (MANTIDA) ---
+    # --- TAB 2: ANIVERSÁRIOS (INTACTA) ---
     with tabs[1]:
         m_at = datetime.now().month
         st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
@@ -102,15 +108,11 @@ else:
                 encontrou = True
         if not encontrou: st.write("Nenhum aniversariante este mês.")
 
-    # --- TAB 3: MURAL (RESTAURADA) ---
+    # --- TAB 3: MURAL (RESTAURADA E PROTEGIDA) ---
     with tabs[2]:
         st.subheader("📢 Mural de Avisos")
-        # Puxa os avisos da primeira linha de dados
-        try:
-            avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
-        except:
-            avs = ["Vazio", "Vazio", "Vazio"]
-        
+        try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
+        except: avs = ["Vazio", "Vazio", "Vazio"]
         cols = st.columns(3)
         for idx in range(3): cols[idx].warning(f"**Aviso {idx+1}**\n\n{avs[idx]}")
         st.divider()
@@ -119,12 +121,12 @@ else:
             b_sal, b_lim = st.columns(2)
             if b_sal.form_submit_button("💾 Salvar Avisos"):
                 requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]})
-                st.success("Mural atualizado!"); time.sleep(1); st.rerun()
+                st.success("✅ MURAL ATUALIZADO COM SUCESSO!"); time.sleep(2); st.rerun()
             if b_lim.form_submit_button("🗑️ Limpar Mural"):
                 requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","", "Vazio", "Vazio", "Vazio", "","",""]})
                 st.rerun()
 
-    # --- TAB 4: CADASTRAR (MANTIDA COM SUCESSO) ---
+    # --- TAB 4: CADASTRAR (INTACTA) ---
     with tabs[3]:
         with st.form("f_cad_final", clear_on_submit=True):
             col_a, col_b = st.columns(2)
@@ -137,7 +139,6 @@ else:
             with col_b:
                 m_c = st.text_input("E-mail"), st.text_input("Rua"), st.text_input("Nº")
                 ba_c, ce_c = st.text_input("Bairro"), st.text_input("CEP")
-            
             if st.form_submit_button("💾 SALVAR CADASTRO"):
                 if n_c.strip().lower() in [n.lower() for n in nomes_lista]:
                     st.error("❌ Nome já cadastrado!")
@@ -147,19 +148,18 @@ else:
                     v_final = f"{v_c} {r_c}" if r_c != "Raiz" else "Raiz"
                     c_final = r_c if "Cônjuge" in v_c else ""
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[n_c, mask_data(d_c), v_final, mask_tel(t_c), m_c[0], m_c[1], m_c[2], c_final, ba_c, ce_c]})
-                    st.success("✅ CADASTRO REALIZADO COM SUCESSO!")
-                    time.sleep(2); st.rerun()
+                    st.success("✅ CADASTRO REALIZADO COM SUCESSO!"); time.sleep(2); st.rerun()
 
-    # --- TAB 5: GERENCIAR (MANTIDA) ---
+    # --- TAB 5: GERENCIAR (INTACTA) ---
     with tabs[4]:
         esc = st.selectbox("Selecione para editar", ["--"] + nomes_lista)
         if esc != "--":
             m = df_m[df_m['nome'] == esc].iloc[0]
             idx_pl = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
             with st.form("f_ger_final"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    e_n = st.text_input("Nome", value=m.get('nome',''), disabled=True)
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.text_input("Nome", value=m.get('nome',''), disabled=True)
                     e_d = st.text_input("Nascimento (DDMMAAAA) *", value=m.get('nascimento',''))
                     e_t = st.text_input("Telefone", value=m.get('telefone',''))
                     idx_v = 1 if "Cônjuge" in m.get('ascendente','') else 0
@@ -167,17 +167,12 @@ else:
                     ref_at = m.get('ascendente','').split(' de ')[-1] if ' de ' in m.get('ascendente','') else "Raiz"
                     idx_r = (nomes_lista.index(ref_at)+1) if ref_at in nomes_lista else 0
                     e_ref = st.selectbox("Referência *", ["Raiz"] + nomes_lista, index=idx_r)
-                with col2:
+                with c2:
                     e_m, e_ru, e_nu = st.text_input("E-mail", m.get('email','')), st.text_input("Rua", m.get('rua','')), st.text_input("Nº", m.get('num',''))
                     e_ba, e_ce = st.text_input("Bairro", m.get('bairro','')), st.text_input("CEP", m.get('cep',''))
-                
-                b1, b2 = st.columns(2)
-                if b1.form_submit_button("💾 ATUALIZAR"):
-                    v_e = f"{e_v_t} {e_ref}" if e_ref != "Raiz" else "Raiz"
-                    c_e = e_ref if "Cônjuge" in e_v_t else ""
-                    requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[esc, mask_data(e_d), v_e, mask_tel(e_t), e_m, e_ru, e_nu, c_e, e_ba, e_ce]})
-                    st.success("✅ ATUALIZAÇÃO REALIZADA COM SUCESSO!")
-                    time.sleep(2); st.rerun()
-                if b2.form_submit_button("🗑️ EXCLUIR"):
+                if st.form_submit_button("💾 ATUALIZAR"):
+                    requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[esc, mask_data(e_d), f"{e_v_t} {e_ref}" if e_ref != "Raiz" else "Raiz", mask_tel(e_t), e_m, e_ru, e_nu, e_ref if "Cônjuge" in e_v_t else "", e_ba, e_ce]})
+                    st.success("✅ ATUALIZAÇÃO REALIZADA COM SUCESSO!"); time.sleep(2); st.rerun()
+                if st.form_submit_button("🗑️ EXCLUIR"):
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":idx_pl, "data":[""]*10})
                     st.success("🗑️ EXCLUÍDO COM SUCESSO!"); time.sleep(2); st.rerun()
