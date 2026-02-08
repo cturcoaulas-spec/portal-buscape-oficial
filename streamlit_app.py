@@ -73,7 +73,7 @@ else:
     df_m = df_todo[df_todo['nome'].str.strip() != ""].sort_values(by='nome').copy()
     nomes_lista = sorted([n.strip() for n in df_m['nome'].unique().tolist() if n.strip()])
 
-    # --- SIDEBAR (NOTIFICAÇÕES ATIVAS) ---
+    # --- SIDEBAR (MANTIDA) ---
     with st.sidebar:
         st.title("🔔 Notificações")
         hoje_dm = datetime.now().strftime("%d/%m")
@@ -87,7 +87,7 @@ else:
     st.title("🌳 Família Buscapé")
     tabs = st.tabs(["🔍 Membros", "🎂 Aniversários", "📢 Mural", "➕ Cadastrar", "✏️ Gerenciar"])
 
-    # --- TAB 1: MEMBROS (LÓGICA FINAL DE RECIPROCIDADE) ---
+    # --- TAB 1: MEMBROS (MAPA RESTAURADO) ---
     with tabs[0]:
         sel_ids = []
         c_topo = st.container()
@@ -100,29 +100,18 @@ else:
             with col_exp.expander(f"👤 {nome_at} | 🎂 {r.get('nascimento','-')}"):
                 ci, cl = st.columns([3, 1])
                 with ci:
-                    # RECIPROCIDADE INTELIGENTE (ANDRÉ <-> AFONSO)
+                    # RECIPROCIDADE CÔNJUGE
                     conj_bruto = str(r.get('conjuge','')).strip()
                     vinc_bruto = str(r.get('vinculo','')).strip()
+                    quem_me_citou = df_m[df_m['conjuge'].str.strip() == nome_at]['nome'].tolist()
                     
                     parceiro = ""
-                    # 1. Verifica campo direto (Limpando FALSE/nan)
-                    if conj_bruto.lower() not in ["", "nan", "false", "0", "none"]:
-                        parceiro = conj_bruto
-                    # 2. Verifica se o vínculo diz "Cônjuge de..."
-                    if not parceiro and "Cônjuge de" in vinc_bruto:
-                        parceiro = vinc_bruto.replace("Cônjuge de", "").strip()
-                    # 3. RECIPROCIDADE: Se alguém apontou este nome como cônjuge, ele ganha a aliança
-                    if not parceiro:
-                        procura_recip = df_m[
-                            (df_m['conjuge'].str.strip() == nome_at) | 
-                            (df_m['vinculo'].str.contains(f"Cônjuge de {nome_at}", case=False, na=False))
-                        ]['nome'].tolist()
-                        if procura_recip: parceiro = procura_recip[0]
+                    if conj_bruto.lower() not in ["", "nan", "false", "0", "none"]: parceiro = conj_bruto
+                    elif "Cônjuge de" in vinc_bruto: parceiro = vinc_bruto.replace("Cônjuge de", "").strip()
+                    elif quem_me_citou: parceiro = quem_me_citou[0]
 
-                    if parceiro and parceiro != nome_at:
-                        st.write(f"💍 **Cônjuge:** {parceiro}")
-                    else:
-                        st.write(f"**Cônjuge:** Nenhum")
+                    if parceiro and parceiro != nome_at: st.write(f"💍 **Cônjuge:** {parceiro}")
+                    else: st.write(f"**Cônjuge:** Nenhum")
                     
                     # PREFIXO FILHO(A) DE AUTOMÁTICO
                     vinc_final = vinc_bruto
@@ -133,16 +122,21 @@ else:
                     st.write(f"🏠 {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')} ({r.get('cep','-')})")
                     st.write(f"✉️ **E-mail:** {r.get('email','-')}")
                 with cl:
+                    # BOTÕES DE AÇÃO (MAPA VOLTOU!)
                     t_c = limpar(r.get('telefone',''))
                     if len(t_c) >= 10:
                         st.link_button("💬 WhatsApp", f"https://wa.me/55{t_c}")
                         st.link_button("📞 Ligar", f"tel:{t_c}")
+                    
+                    if r.get('rua'):
+                        endereco_full = f"{r['rua']}, {r['num']}, {r['bairro']}, {r['cep']}"
+                        st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(endereco_full)}")
 
         if sel_ids:
             pdf_data = gerar_pdf(df_m.loc[sel_ids])
             c_topo.download_button("📥 BAIXAR PDF DOS SELECIONADOS", pdf_data, "familia_buscape.pdf")
 
-    # --- DEMAIS ABAS (MANTIDAS INTACTAS E PROTEGIDAS) ---
+    # --- AS OUTRAS ABAS CONTINUAM IGUAIS (TRANCADAS) ---
     with tabs[1]:
         m_at = datetime.now().month
         st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
