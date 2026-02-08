@@ -97,16 +97,7 @@ else:
             # Responsabilidade
             pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Responsabilidade e Importancia dos Dados", ln=True)
             pdf_m.set_font("Arial", "", 11)
-            pdf_m.multi_cell(0, 7, "IMPORTANTE: Este e um sistema compartilhado. Tudo o que voce edita ou apaga, muda para TODOS os familiares. Use com carinho.\nMantenha seu Telefone, Endereco e Nascimento sempre atualizados. Sem isso, nao conseguiremos enviar avisos de aniversarios ou abrir o GPS para visitas!")
+            pdf_m.multi_cell(0, 7, "IMPORTANTE: Este e um sistema compartilhado. Tudo o que voce edita ou apaga, muda para TODOS os familiares. Use com carinho. Mantenha seu Telefone, Endereco e Nascimento sempre atualizados. Sem isso, nao conseguiremos enviar avisos de aniversarios ou abrir o GPS para visitas!")
             
             # Funcionalidades
-            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Funcionalidades do App", ln=True)
-            pdf_m.set_font("Arial", "", 11)
-            pdf_m.multi_cell(0, 7, "- Membros: Lista de contatos com botoes para ligar, mandar WhatsApp e abrir o Google Maps.\n- Niver: Lista automatica dos aniversariantes do mes atual.\n- Mural: Avisos importantes da Valeria e de toda a familia.\n- Arvore: Fluxograma visual mostrando as raizes e descendentes.")
-            
-            # Celular
-            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Como 'Instalar' no Celular", ln=True)
-            pdf_m.set_font("Arial", "", 11)
-            pdf_m.multi_cell(0, 7, "Para ter o icone da Arvore (🌳) na sua tela:\n- Android (Chrome): Clique nos 3 pontinhos no canto superior e escolha 'Instalar aplicativo'.\n- iPhone (Safari): Clique no icone de partilhar (quadrado com seta) e escolha 'Adicionar a Tela de Inicio'.")
-            
-            pdf_m.ln(10); pdf_m.set_font("Arial", "B
+            pdf_m.ln(5); pdf_m.set_font("Arial", "B", 12); pdf_m.cell(0, 10, "Funcionalidades do
