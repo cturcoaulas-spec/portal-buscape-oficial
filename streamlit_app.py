@@ -28,8 +28,10 @@ MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Jul
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
+def limpar(v): return re.sub(r'\D', '', str(v))
+
 def mask_tel(v):
-    n = re.sub(r'\D', '', str(v))[:11]
+    n = limpar(str(v))[:11]
     if len(n) == 11: return f"({n[:2]}) {n[2:7]}-{n[7:11]}"
     if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
     return n if n else "-"
@@ -85,16 +87,22 @@ else:
         st.title("🌳 Família Buscapé")
         tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
-        with tabs[0]: # 1. Membros
+        with tabs[0]: # 1. Membros (BOTÃO DE MAPA VOLTOU!)
             for i, r in df_m.iterrows():
                 with st.expander(f"👤 {r['nome']} | 🎂 {r.get('nascimento','-')}"):
                     ci, cl = st.columns([3, 1])
                     with ci:
                         st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))}")
                         st.write(f"🏠 **End:** {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}")
+                        st.write(f"🌳 **Vínculo:** {r.get('vinculo','-')}")
                     with cl:
-                        t = re.sub(r'\D', '', str(r.get('telefone','')))
+                        t = limpar(r.get('telefone',''))
                         if len(t) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{t}")
+                        # VOLTA DO BOTÃO DE MAPA
+                        end_rua = str(r.get('rua', '')).strip()
+                        if end_rua and end_rua != "-" and end_rua != "":
+                            endereco_full = f"{end_rua}, {r.get('num','')}, {r.get('bairro','')}"
+                            st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(endereco_full)}")
 
         with tabs[1]: # 2. Niver
             m_at = datetime.now().month
@@ -123,11 +131,11 @@ else:
                 with c2:
                     ru = st.text_input("Rua"); nu = st.text_input("Nº"); ba = st.text_input("Bairro")
                     ce = st.text_input("CEP"); rc = st.selectbox("Referência", ["Raiz"] + nomes_lista, key="ref_novo")
-                if st.form_submit_button("💾 SALVAR NOVO MEMBRO"):
+                if st.form_submit_button("💾 CADASTRAR NOVO MEMBRO"):
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dc, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, em, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]})
                     st.success("Cadastrado!"); time.sleep(1); st.rerun()
 
-        with tabs[4]: # 5. Gerenciar (COM CAMPO DE VÍNCULO VOLTADO!)
+        with tabs[4]: # 5. Gerenciar
             st.subheader("✏️ Editar ou Excluir Membro")
             esc = st.selectbox("Selecione quem deseja alterar", ["--"] + nomes_lista)
             if esc != "--":
@@ -146,7 +154,6 @@ else:
                             er = st.text_input("Rua", value=m.get('rua',''))
                             en = st.text_input("Nº", value=m.get('num',''))
                             eb = st.text_input("Bairro", value=m.get('bairro',''))
-                            # NOVO: Campos para alterar o Vínculo/Raiz
                             tipo_vinc = st.radio("Novo Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True, key="edit_vinc")
                             ref_vinc = st.selectbox("Nova Referência", ["Raiz"] + nomes_lista, key="edit_ref")
                         
