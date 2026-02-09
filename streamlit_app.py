@@ -8,10 +8,10 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (PRIMEIRO COMANDO)
+# 1. CONFIGURAÇÃO
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
-# 2. BLOCO DE SEGURANÇA E ESTILO (BLINDADO)
+# 2. BLOCO DE SEGURANÇA E ESTILO
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -19,7 +19,6 @@ st.markdown("""
     footer {visibility: hidden;}
     .stDeployButton {display:none;}
     [data-testid="stToolbar"] {visibility: hidden !important;}
-    
     .block-container { padding-top: 2rem; }
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
@@ -28,12 +27,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# LINKS DE INTEGRAÇÃO
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJjlcMpJoxoO05lilysWJaj_udqeXqvfYFgzvWPlC-Omw/exec"
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES DE SUPORTE ---
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -82,7 +79,6 @@ def carregar_dados():
         return pd.DataFrame()
     except: return pd.DataFrame()
 
-# --- LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -98,7 +94,6 @@ else:
         nomes_lista = sorted(df_m['nome'].unique().tolist())
         mes_at = datetime.now().month
 
-        # --- SIDEBAR ---
         with st.sidebar:
             st.title("⚙️ Painel")
             st.subheader("🔔 Notificações")
@@ -106,9 +101,8 @@ else:
             for _, r in df_m.iterrows():
                 dt = str(r.get('nascimento',''))
                 if "/" in dt:
-                    partes = dt.split('/')
-                    if len(partes) >= 2 and int(partes[1]) == mes_at:
-                        niver_mes.append(f"🎂 {partes[0]} - {r['nome']}")
+                    pt = dt.split('/')
+                    if len(pt) >= 2 and int(pt[1]) == mes_at: niver_mes.append(f"🎂 {pt[0]} - {r['nome']}")
             if niver_mes:
                 st.info(f"**Aniversariantes de {MESES_BR[mes_at]}:**")
                 for n in niver_mes: st.write(n)
@@ -161,7 +155,7 @@ else:
             with st.form("c_f", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1: 
-                    nc = st.text_input("Nome Completo *"); dc = st.text_input("Nasc (ex: 09021980) *"); tc = st.text_input("Tel")
+                    nc = st.text_input("Nome Completo *"); dc = st.text_input("Nascimento (ex: 09021980) *"); tc = st.text_input("Tel")
                     em = st.text_input("E-mail"); vc = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], key="vinc_novo")
                 with c2:
                     ru = st.text_input("Rua"); nu = st.text_input("Nº"); ba = st.text_input("Bairro")
@@ -177,56 +171,46 @@ else:
             if esc != "--":
                 m_busca = df_m[df_m['nome'] == esc]
                 if not m_busca.empty:
-                    m = m_busca.iloc[0]
-                    idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
+                    m = m_busca.iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
                     with st.form("g_f"):
                         g1, g2 = st.columns(2)
                         with g1:
                             st.text_input("Nome", value=esc, disabled=True)
-                            ed = st.text_input("Nascimento", value=m.get('nascimento',''))
-                            et = st.text_input("Telefone", value=m.get('telefone',''))
+                            ed = st.text_input("Nascimento", value=m.get('nascimento','')); et = st.text_input("Telefone", value=m.get('telefone',''))
                             ee = st.text_input("E-mail", value=m.get('email',''))
                         with g2:
-                            er = st.text_input("Rua", value=m.get('rua',''))
-                            en = st.text_input("Nº", value=m.get('num',''))
+                            er = st.text_input("Rua", value=m.get('rua','')); en = st.text_input("Nº", value=m.get('num',''))
                             eb = st.text_input("Bairro", value=m.get('bairro',''))
                             tipo_vinc = st.radio("Novo Vínculo", ["Filho(a) de", "Cônjuge de"], horizontal=True, key="edit_vinc")
                             ref_vinc = st.selectbox("Nova Referência", ["Raiz"] + nomes_lista, key="edit_ref")
-                        col_btn1, col_btn2 = st.columns(2)
-                        if col_btn1.form_submit_button("💾 SALVAR ALTERAÇÕES"):
+                        b1, b2 = st.columns(2)
+                        if b1.form_submit_button("💾 SALVAR ALTERAÇÕES"):
                             dt_edit = mask_data(ed)
                             novo_vinc_final = f"{tipo_vinc} {ref_vinc}" if ref_vinc != "Raiz" else "Raiz"
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, dt_edit, novo_vinc_final, et, ee, er, en, ref_vinc if "Cônjuge" in tipo_vinc else "", eb, m.get('cep','')]})
                             st.success("Atualizado!"); time.sleep(1); st.rerun()
-                        if col_btn2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
-                            requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
-                            st.warning("Excluído!"); time.sleep(1); st.rerun()
+                        if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
+                            requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (DOWNLOAD COMO IMAGEM PNG)
+        with tabs[5]: # 6. Árvore (CORRIGIDA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
                 n, v = str(row['nome']), str(row.get('vinculo','Raiz'))
                 if " de " in v:
-                    ref = v.split(" de ")[-1]
+                    ref = v.split(" de ", 1)[-1] # SPLIT SÓ NO PRIMEIRO "DE"
                     if "Cônjuge" in v:
                         dot += f'"{n}" [fillcolor="#FFF9C4", label="{n}\\n(Cônjuge)"];'
                         dot += f'"{ref}" -> "{n}" [style=dashed, constraint=false];'
-                    else:
-                        dot += f'"{ref}" -> "{n}" [style=solid];'
-                elif v == "Raiz": 
-                    dot += f'"{n}" [fillcolor="#C8E6C9"];'
+                    else: dot += f'"{ref}" -> "{n}" [style=solid];'
+                elif v == "Raiz": dot += f'"{n}" [fillcolor="#C8E6C9"];'
             dot += '}'
             st.graphviz_chart(dot)
-            
-            # GERAÇÃO DA IMAGEM VIA API (QuickChart)
             try:
                 img_url = f"https://quickchart.io/graphviz?format=png&width=1000&graph={quote(dot)}"
                 res_img = requests.get(img_url)
-                if res_img.status_code == 200:
-                    st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
-            except:
-                st.warning("Não foi possível gerar a imagem para download no momento.")
+                if res_img.status_code == 200: st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
+            except: pass
 
         with tabs[6]: # 7. Manual
             st.markdown("""
