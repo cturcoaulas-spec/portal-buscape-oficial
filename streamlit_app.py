@@ -171,7 +171,7 @@ else:
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dt_f, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, em, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]})
                     st.success("🎉 Membro Cadastrado!"); time.sleep(2); st.rerun()
 
-        with tabs[4]: # 5. Gerenciar (RESTAURADO COMPLETO)
+        with tabs[4]: # 5. Gerenciar
             st.subheader("✏️ Editar ou Excluir Membro")
             esc = st.selectbox("Selecione quem deseja alterar", ["--"] + nomes_lista)
             if esc != "--":
@@ -202,7 +202,7 @@ else:
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
                             st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. ÁRVORE (RESTAURADA ORIGINAL)
+        with tabs[5]: # 6. Árvore (RESTAURADA E COM BOTÃO DE SALVAR)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -218,6 +218,8 @@ else:
                     dot += f'"{n}" [fillcolor="#C8E6C9"];'
             dot += '}'
             st.graphviz_chart(dot)
+            # BOTÃO DE SALVAR ESTRUTURA
+            st.download_button("💾 SALVAR ARQUIVO DA ÁRVORE", dot, "arvore_buscape.dot")
 
         with tabs[6]: # 7. Manual
             st.markdown("""
