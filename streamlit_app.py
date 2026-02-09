@@ -54,14 +54,16 @@ def gerar_pdf_membros(dados):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, "Manual Família Buscapé - Relatório de Membros", ln=True, align="C")
+    pdf.cell(200, 10, "Manual Familia Buscape - Relatorio Oficial", ln=True, align="C")
     pdf.ln(5)
+    
     for _, r in dados.iterrows():
         pdf.set_font("Arial", "B", 11)
         pdf.cell(0, 8, f"Nome: {r.get('nome','-')}", ln=True)
         pdf.set_font("Arial", size=10)
         pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {mask_tel(r.get('telefone','-'))}", ln=True)
         pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}", ln=True)
+        pdf.cell(0, 6, f"Vinculo: {r.get('vinculo','-')}", ln=True)
         pdf.ln(2); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
     return pdf.output(dest='S').encode('latin-1')
 
@@ -86,7 +88,7 @@ def carregar_dados():
         return pd.DataFrame()
     except: return pd.DataFrame()
 
-# --- LOGIN ---
+# --- INTERFACE ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -100,22 +102,21 @@ else:
     else:
         df_m = df_todo[df_todo['nome'] != ""].sort_values(by='nome').copy()
         nomes_lista = sorted(df_m['nome'].unique().tolist())
-        mes_atual = datetime.now().month
+        mes_at = datetime.now().month
 
-        # --- BARRA LATERAL (SIDEBAR) ---
+        # --- SIDEBAR (LATERAL) RESTAURADA ---
         with st.sidebar:
             st.title("⚙️ Painel")
             st.subheader("🔔 Notificações")
             niver_mes = []
             for _, r in df_m.iterrows():
                 dt = str(r.get('nascimento',''))
-                if "/" in dt and int(dt.split('/')[1]) == mes_atual:
+                if "/" in dt and int(dt.split('/')[1]) == mes_at:
                     niver_mes.append(f"🎂 {dt.split('/')[0]} - {r['nome']}")
             if niver_mes:
-                st.info(f"**Aniversariantes de {MESES_BR[mes_atual]}:**")
+                st.info(f"**Aniversariantes de {MESES_BR[mes_at]}:**")
                 for n in niver_mes: st.write(n)
-            else:
-                st.write("Sem avisos para este mês.")
+            else: st.write("Sem avisos para este mês.")
             st.divider()
             if st.button("🔄 Sincronizar"): st.cache_data.clear(); st.rerun()
             st.button("🚪 Sair", on_click=lambda: st.session_state.update({"logado": False}))
@@ -141,13 +142,13 @@ else:
                         if rua and rua != "-": st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{rua},{r.get('num','')}')}")
             if sel_ids: c_topo.download_button("📥 PDF SELECIONADOS", gerar_pdf_membros(df_m.loc[sel_ids]), "familia.pdf")
 
-        with tabs[1]: # 2. Niver
-            st.subheader(f"🎂 Aniversariantes de {MESES_BR[mes_atual]}")
+        with tabs[1]: # 2. Niver (ORIGINAL)
+            st.subheader(f"🎂 Aniversariantes de {MESES_BR[mes_at]}")
             for _, r in df_m.iterrows():
                 dt = str(r.get('nascimento',''))
-                if "/" in dt and int(dt.split('/')[1]) == mes_atual: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
+                if "/" in dt and int(dt.split('/')[1]) == mes_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
 
-        with tabs[2]: # 3. Mural
+        with tabs[2]: # 3. Mural (ORIGINAL)
             try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
             except: avs = ["Vazio", "Vazio", "Vazio"]
             cols = st.columns(3)
@@ -155,14 +156,14 @@ else:
             with st.form("m_f"):
                 v1, v2, v3 = st.text_input("A1", avs[0]), st.text_input("A2", avs[1]), st.text_input("A3", avs[2])
                 b_s, b_l = st.columns(2)
-                if b_s.form_submit_button("💾 SALVAR"): 
+                if b_s.form_submit_button("💾 SALVAR MURAL"): 
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]})
                     st.success("Salvo!"); time.sleep(1); st.rerun()
-                if b_l.form_submit_button("🗑️ LIMPAR"): 
+                if b_l.form_submit_button("🗑️ LIMPAR MURAL"): 
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]})
                     st.warning("Mural limpo!"); time.sleep(1); st.rerun()
 
-        with tabs[3]: # 4. Novo
+        with tabs[3]: # 4. Novo (MÁSCARA RESTAURADA)
             with st.form("c_f", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1: 
@@ -174,62 +175,53 @@ else:
                 if st.form_submit_button("💾 SALVAR NOVO MEMBRO"):
                     dt_f = mask_data(dc)
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dt_f, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, em, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]})
-                    st.success("🎉 Membro Cadastrado!"); time.sleep(2); st.rerun()
+                    st.success("🎉 Cadastrado!"); time.sleep(2); st.rerun()
 
         with tabs[4]: # 5. Gerenciar
-            st.subheader("✏️ Editar ou Excluir")
             esc = st.selectbox("Escolha quem deseja alterar", ["--"] + nomes_lista)
             if esc != "--":
                 m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
                 with st.form("g_f"):
                     g1, g2 = st.columns(2)
-                    with g1: ed = st.text_input("Nascimento", value=m.get('nascimento','')); et = st.text_input("Telefone", value=m.get('telefone',''))
+                    with g1: ed = st.text_input("Nasc", value=m.get('nascimento','')); et = st.text_input("Tel", value=m.get('telefone',''))
                     with g2: ee = st.text_input("E-mail", value=m.get('email','')); er = st.text_input("Rua", value=m.get('rua',''))
                     b1, b2 = st.columns(2)
                     if b1.form_submit_button("💾 SALVAR"):
-                        dt_e = mask_data(ed)
-                        requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, dt_e, m.get('vinculo',''), et, ee, er, m.get('num',''), "", m.get('bairro',''), m.get('cep','')]})
+                        requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[esc, ed, m.get('vinculo',''), et, ee, er, m.get('num',''), "", m.get('bairro',''), m.get('cep','')]})
                         st.success("Atualizado!"); time.sleep(1); st.rerun()
                     if b2.form_submit_button("🗑️ EXCLUIR"):
                         requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore
+        with tabs[5]: # 6. ÁRVORE (CORRIGIDA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
                 n, v = str(row['nome']), str(row.get('vinculo','Raiz'))
                 if " de " in v:
                     ref = v.split(" de ")[-1]
-                    if "Cônjuge" in v: dot += f'"{n}" [fillcolor="#FFF9C4", label="{n}\\n(Cônjuge)"]; dot += "{ref}" -> "{n}" [style=dashed, constraint=false];'
-                    else: dot += f'"{ref}" -> "{n}" [style=solid];'
-                elif v == "Raiz": dot += f'"{n}" [fillcolor="#C8E6C9"];'
+                    if "Cônjuge" in v:
+                        dot += f'"{n}" [fillcolor="#FFF9C4", label="{n}\\n(Cônjuge)"];'
+                        dot += f'"{ref}" -> "{n}" [style=dashed, constraint=false];'
+                    else:
+                        dot += f'"{ref}" -> "{n}" [style=solid];'
+                elif v == "Raiz": 
+                    dot += f'"{n}" [fillcolor="#C8E6C9"];'
             st.graphviz_chart(dot + '}')
 
-        with tabs[6]: # 7. Manual
+        with tabs[6]: # 7. MANUAL (TEXTO OFICIAL)
             st.markdown("""
-            ### 📖 Manual Família Buscapé
+            ### 📖 Manual Familia Buscape
+            1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
+            2. **O que sao as Abas?** **Membros:** Nossa agenda viva.  
+            **Niver:** Onde celebramos a vida a cada mes.  
+            **Mural:** Nosso quadro de avisos coletivo.  
+            **Novo:** Para a familia crescer.  
+            **Gerenciar:** Para manter tudo organizado.  
+            **Arvore:** Onde vemos quem somos e de onde viemos.
+            3. **Integracoes Magicas** Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!
+            4. **Responsabilidade** Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
+            5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.  
+            **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
             
-            **1. Boas-vindas!**
-            Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
-            
-            **2. O que sao as Abas?**
-            * **Membros:** Nossa agenda viva.
-            * **Niver:** Onde celebramos a vida a cada mes.
-            * **Mural:** Nosso quadro de avisos coletivo.
-            * **Novo:** Para a familia crescer.
-            * **Gerenciar:** Para manter tudo organizado.
-            * **Arvore:** Onde vemos quem somos e de onde viemos.
-            
-            **3. Integracoes Magicas**
-            Clicando no botao de **WhatsApp**, voce fala com o parente sem precisar salvar o numero. Clicando no botao de **Mapa**, o GPS do seu telemovel abre direto na porta da casa dele!
-            
-            **4. Responsabilidade**
-            Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
-            
-            **5. No seu Telemovel**
-            * **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.
-            * **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
-            
-            ---
-            **🔑 SENHA DE ACESSO:** `buscape2026`
+            **SENHA DE ACESSO:** `buscape2026`
             """)
