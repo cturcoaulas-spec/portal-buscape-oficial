@@ -8,34 +8,31 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO
+# 1. CONFIGURAÇÃO (O NOME DO APP NO ÍCONE)
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM CIRÚRGICA (FOCO EM SUMIR COM O SISTEMA SEM MATAR O NAVEGADOR)
+# 2. BLINDAGEM CIRÚRGICA (TIRA O SISTEMA, LIBERA O NAVEGADOR)
 st.markdown("""
     <style>
-    /* Esconde o Manage App (Badge) e Botão de Deploy */
-    [data-testid="stStatusWidget"], .viewerBadge_container__1QSob, .stAppDeployButton {
+    /* 1. ESCONDE O MANAGE APP, O BOTÃO DE CÓDIGO E O DEPLOY */
+    [data-testid="stStatusWidget"], 
+    .viewerBadge_container__1QSob, 
+    .stAppDeployButton, 
+    #MainMenu, 
+    header, 
+    footer,
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"] {
         display: none !important;
+        visibility: hidden !important;
     }
 
-    /* Esconde apenas os botões de sistema do menu superior, não o header todo */
-    #MainMenu { visibility: hidden !important; }
-    [data-testid="stToolbar"] { display: none !important; }
-    [data-testid="stDecoration"] { display: none !important; }
-    footer { visibility: hidden !important; }
-
-    /* Ajuste de altura do topo para permitir usar os 3 pontinhos do navegador */
-    header[data-testid="stHeader"] {
-        height: 2.5rem !important;
-        background-color: rgba(255, 255, 255, 0) !important;
-    }
-    
+    /* 2. LIBERA O ESPAÇO DO TOPO PARA O NAVEGADOR (GOOGLE/SAFARI) */
     .block-container { 
         padding-top: 1rem !important; 
     }
 
-    /* Estilo das Abas e Botões - PRESERVADOS */
+    /* ESTILO DAS ABAS E BOTÕES - PRESERVADOS */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
@@ -97,7 +94,7 @@ def carregar_dados():
         return pd.DataFrame()
     except: return pd.DataFrame()
 
-# --- INTERFACE ---
+# --- LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -208,7 +205,7 @@ else:
                         if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (MANUTENÇÃO DA LÓGICA SOFIA/GABRIELA)
+        with tabs[5]: # 6. Árvore (SOFIA E GABRIELA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -232,23 +229,12 @@ else:
             st.markdown("""
             ### 📖 Manual Familia Buscape
             1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
-            
-            2. **O que sao as Abas?** **Membros:** Nossa agenda viva.  
-            **Niver:** Onde celebramos a vida a cada mes.  
-            **Mural:** Nosso quadro de avisos coletivo.  
-            **Novo:** Para a familia crescer.  
-            **Gerenciar:** Para manter tudo organizado.  
-            **Arvore:** Onde vemos quem somos e de onde viemos.
-            
+            2. **O que sao as Abas?** **Membros:** Nossa agenda viva. **Niver:** Onde celebramos a vida a cada mes. **Mural:** Nosso quadro de avisos coletivo. **Novo:** Para a familia crescer. **Gerenciar:** Para manter tudo organizado. **Arvore:** Onde vemos quem somos e de onde viemos.
             3. **Integracoes Magicas** Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!
-            
             4. **Responsabilidade** Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
-            
-            5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.  
-            **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
-            
+            5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'. **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
             ---
             **🔑 SENHA DE ACESSO:** `buscape2026`
-            
-            **📲 DICA DE INSTALAÇÃO:** Para usar como aplicativo: use o menu do navegador e escolha 'Adicionar à tela inicial'.
+            ---
+            **📲 DICA DE INSTALAÇÃO:** Para usar como aplicativo, use o menu do navegador e escolha 'Adicionar à tela inicial'.
             """)
