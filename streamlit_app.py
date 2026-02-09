@@ -11,16 +11,23 @@ from fpdf import FPDF
 # 1. CONFIGURAÇÃO (PRIMEIRO COMANDO)
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
-# 2. BLOCO DE SEGURANÇA E ESTILO (ESCONDE MENUS)
+# 2. BLOCO DE SEGURANÇA E ESTILO AJUSTADO (SEM REPUXAR O SITE)
 st.markdown("""
     <style>
+    /* TRAVAS DE SEGURANÇA: Esconde menus sem quebrar o layout */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
     .stDeployButton {display:none;}
     [data-testid="stToolbar"] {visibility: hidden !important;}
     
-    .stApp { margin-top: -60px; }
+    /* AJUSTE DE LAYOUT: Removemos o margin-top negativo que estava atrapalhando */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    /* ESTILO DAS ABAS E BOTÕES */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
@@ -78,7 +85,7 @@ def carregar_dados():
         return pd.DataFrame()
     except: return pd.DataFrame()
 
-# --- INTERFACE ---
+# --- LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -103,7 +110,7 @@ else:
         st.title("🌳 Família Buscapé")
         tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
-        with tabs[0]: # ABA 0: Membros
+        with tabs[0]: # 1. Membros
             sel_ids = []; c_topo = st.container()
             for i, r in df_m.iterrows():
                 col_sel, col_exp = st.columns([0.15, 3.85])
@@ -122,14 +129,14 @@ else:
             if sel_ids:
                 c_topo.download_button("📥 PDF SELECIONADOS", gerar_pdf_membros(df_m.loc[sel_ids]), "familia.pdf")
 
-        with tabs[1]: # ABA 1: Niver
+        with tabs[1]: # 2. Niver
             m_at = datetime.now().month
             st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
             for _, r in df_m.iterrows():
                 dt = str(r.get('nascimento',''))
                 if "/" in dt and int(dt.split('/')[1]) == m_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
 
-        with tabs[2]: # ABA 2: Mural
+        with tabs[2]: # 3. Mural
             try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
             except: avs = ["Vazio", "Vazio", "Vazio"]
             cols = st.columns(3)
@@ -142,7 +149,7 @@ else:
                 if b_l.form_submit_button("🗑️ LIMPAR"): 
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]}); st.rerun()
 
-        with tabs[3]: # ABA 3: Novo
+        with tabs[3]: # 4. Cadastrar
             with st.form("c_f", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1: nc = st.text_input("Nome *"); dc = st.text_input("Nasc *"); tc = st.text_input("Tel")
@@ -150,7 +157,7 @@ else:
                 if st.form_submit_button("💾 CADASTRAR"):
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dc, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, "", "", "", "", "", ""]}); st.rerun()
 
-        with tabs[4]: # ABA 4: Gerenciar
+        with tabs[4]: # 5. Gerenciar
             esc = st.selectbox("Editar", ["--"] + nomes_lista)
             if esc != "--":
                 m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
@@ -162,7 +169,7 @@ else:
                     if b2.form_submit_button("🗑️ EXCLUIR"):
                         requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.rerun()
 
-        with tabs[5]: # ABA 5: Árvore
+        with tabs[5]: # 6. Árvore
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, r in df_m.iterrows():
                 n, v = str(r['nome']), str(r.get('vinculo','Raiz'))
@@ -173,5 +180,5 @@ else:
                 elif v == "Raiz": dot += f'"{n}" [fillcolor="#C8E6C9"];'
             st.graphviz_chart(dot + '}')
 
-        with tabs[6]: # ABA 6: Manual
+        with tabs[6]: # 7. Manual
             st.markdown("### 📖 Guia: Senha: **buscape2026**")
