@@ -8,37 +8,34 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO DO APP
+# 1. CONFIGURAÇÃO BÁSICA
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM EQUILIBRADA (NÃO ESCONDE O CONTEÚDO INTERNO)
+# 2. CSS SIMPLIFICADO (NÃO BLOQUEIA O NAVEGADOR NEM A LATERAL)
 st.markdown("""
     <style>
-    /* Esconde apenas o botão vermelho e o menu técnico do Streamlit */
-    .viewerBadge_container__1QSob, .stAppDeployButton, #MainMenu { display: none !important; }
-    [data-testid="stStatusWidget"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
+    /* Esconde apenas o botão vermelho do Streamlit */
+    .viewerBadge_container__1QSob, .stAppDeployButton { display: none !important; }
     footer { display: none !important; }
-
-    /* Devolve o botão do menu lateral (as três barrinhas) no celular */
+    
+    /* Garante que o botão do menu lateral (hambúrguer) apareça no topo */
     header[data-testid="stHeader"] {
         visibility: visible !important;
         background-color: white !important;
     }
 
-    /* Respiro para o navegador (Chrome/Safari) mostrar os 3 pontinhos */
+    /* Dá um espaço no topo para o Chrome mostrar os 3 pontinhos */
     .block-container { 
-        padding-top: 4rem !important; 
-        display: block !important; /* Garante que o conteúdo interno apareça */
+        padding-top: 3rem !important; 
     }
 
-    /* Estilo das Abas - PRESERVADO */
+    /* Estilo das Abas */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
-    button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÕES DE SUPORTE (A LINHA DO SEU PROJETO) ---
+# 3. FUNÇÕES E DADOS (A LINHA DO SEU PROJETO)
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -50,32 +47,17 @@ def mask_tel(v):
     if len(n) == 10: return f"({n[:2]}) {n[2:6]}-{n[6:10]}"
     return n if n else "-"
 
-def mask_data(d):
-    d = limpar(str(d))
-    if len(d) == 8: return f"{d[:2]}/{d[2:4]}/{d[4:]}"
-    return d
-
 @st.cache_data(ttl=2)
 def carregar_dados():
     try:
-        df = pd.read_csv("https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv", dtype=str).fillna("")
-        mapa_novo = {}
-        for c in df.columns:
-            cn = normalizar(c)
-            if 'nome' in cn: mapa_novo[c] = 'nome'
-            elif 'nasc' in cn: mapa_novo[c] = 'nascimento'
-            elif 'vinc' in cn or 'ascend' in cn: mapa_novo[c] = 'vinculo'
-            elif 'tel' in cn: mapa_novo[c] = 'telefone'
-            elif 'rua' in cn: mapa_novo[c] = 'rua'
-            elif 'num' in cn: mapa_novo[c] = 'num'
-            elif 'bair' in cn: mapa_novo[c] = 'bairro'
-            elif 'cep' in cn: mapa_novo[c] = 'cep'
-            elif 'emai' in cn: mapa_novo[c] = 'email'
-        df = df.rename(columns=mapa_novo)
-        return df if 'nome' in df.columns else pd.DataFrame()
+        url = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
+        df = pd.read_csv(url, dtype=str).fillna("")
+        mapa = {c: normalizar(c) for c in df.columns}
+        df = df.rename(columns={k: 'nome' if 'nome' in v else 'nascimento' if 'nasc' in v else 'vinculo' if 'vinc' in v or 'ascend' in v else 'telefone' if 'tel' in v else 'rua' if 'rua' in v else 'num' if 'num' in v else 'bairro' if 'bair' in v else 'cep' if 'cep' in v else 'email' if 'emai' in v else k for k, v in mapa.items()})
+        return df
     except: return pd.DataFrame()
 
-# --- INTERFACE ---
+# 4. INTERFACE
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -85,15 +67,15 @@ if not st.session_state.logado:
         else: st.error("Senha incorreta!")
 else:
     df_todo = carregar_dados()
-    if df_todo.empty: st.error("⚠️ Erro ao carregar dados.")
+    if df_todo.empty: st.error("⚠️ Erro ao carregar os dados da planilha.")
     else:
         df_m = df_todo[df_todo['nome'] != ""].sort_values(by='nome').copy()
-        mes_at = datetime.now().month
-
-        # BARRA LATERAL RESTAURADA
+        
+        # BARRA LATERAL (MENU HAMBÚRGUER)
         with st.sidebar:
             st.title("⚙️ Painel")
             st.subheader("🔔 Notificações")
+            mes_at = datetime.now().month
             niver_mes = [f"🎂 {str(r['nascimento']).split('/')[0]} - {r['nome']}" for _, r in df_m.iterrows() if '/' in str(r['nascimento']) and int(str(r['nascimento']).split('/')[1]) == mes_at]
             if niver_mes:
                 for n in niver_mes: st.write(n)
@@ -109,8 +91,10 @@ else:
                 with st.expander(f"👤 {r['nome']}"):
                     st.write(f"📞 Tel: {mask_tel(r.get('telefone','-'))}")
                     st.write(f"🏠 End: {r.get('rua','-')}, {r.get('num','-')}")
+                    t = limpar(r.get('telefone',''))
+                    if len(t) >= 10: st.link_button("💬 WhatsApp", f"https://wa.me/55{t}")
 
-        with tabs[5]: # 6. Árvore (SOFIA E GABRIELA)
+        with tabs[5]: # 6. Árvore (Sofia/Gabriela)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"];'
             for _, row in df_m.iterrows():
@@ -126,9 +110,9 @@ else:
             st.markdown("""
             ### 📖 Manual Familia Buscape
             1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. 
-            2. **Abas:** **Membros** (Agenda), **Niver** (Aniversários), **Mural** (Avisos), **Novo** (Cadastro), **Gerenciar** (Edição), **Árvore** (Nossa história).
-            3. **Ações:** Clique no WhatsApp para falar direto ou no Mapa para abrir o GPS.
-            4. **No Celular:** **Android (Chrome):** use os 3 pontinhos e 'Instalar'. **iPhone (Safari):** use a seta de partilhar e 'Ecrã principal'.
+            2. **O que sao as Abas?** **Membros:** Agenda viva. **Niver:** Aniversários. **Mural:** Avisos. **Novo:** Cadastro. **Gerenciar:** Edição. **Arvore:** Nossa história.
+            3. **Integracoes:** Clique no WhatsApp para falar ou no Mapa para abrir o GPS.
+            4. **No seu Telemovel:** **Android (Chrome):** use os 3 pontinhos e 'Instalar'. **iPhone (Safari):** use a seta de partilhar e 'Ecra principal'.
             ---
             **🔑 SENHA:** `buscape2026`
             """)
