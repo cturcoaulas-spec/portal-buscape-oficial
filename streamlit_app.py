@@ -8,10 +8,10 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (ALTERADO PARA "FBUSCAPE" PARA O NOME NO TELEMÓVEL)
-st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
+# 1. CONFIGURAÇÃO
+st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
-# 2. BLOCO DE SEGURANÇA E ESTILO (BLINDADO)
+# 2. BLOCO DE SEGURANÇA E ESTILO
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -47,7 +47,6 @@ def mask_data(d):
     if len(d) == 8: return f"{d[:2]}/{d[2:4]}/{d[4:]}"
     return d
 
-# PDF COM INSTRUÇÃO DE INSTALAÇÃO NO RODAPÉ
 def gerar_pdf_membros(dados):
     pdf = FPDF()
     pdf.add_page(); pdf.set_font("Arial", "B", 14)
@@ -57,9 +56,6 @@ def gerar_pdf_membros(dados):
         pdf.set_font("Arial", size=10); pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {mask_tel(r.get('telefone','-'))}", ln=True)
         pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}", ln=True)
         pdf.ln(2); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
-    
-    pdf.ln(10); pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, "Para usar como aplicativo: clique nos menus do seu navegador e escolha 'Instalar' ou 'Adicionar a tela inicial'.", ln=True, align="C")
     return pdf.output(dest='S').encode('latin-1')
 
 @st.cache_data(ttl=2)
@@ -159,7 +155,7 @@ else:
             with st.form("c_f", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1: 
-                    nc = st.text_input("Nome Completo *"); dc = st.text_input("Nasc (ex: 09021980) *"); tc = st.text_input("Tel")
+                    nc = st.text_input("Nome Completo *"); dc = st.text_input("Nascimento (ex: 09021980) *"); tc = st.text_input("Tel")
                     em = st.text_input("E-mail"); vc = st.radio("Vínculo", ["Filho(a) de", "Cônjuge de"], key="vinc_novo")
                 with c2:
                     ru = st.text_input("Rua"); nu = st.text_input("Nº"); ba = st.text_input("Bairro")
@@ -196,13 +192,13 @@ else:
                         if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (MANUTENÇÃO DA LÓGICA "SOFIA/GABRIELA")
+        with tabs[5]: # 6. Árvore (CORRIGIDA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
                 n, v = str(row['nome']), str(row.get('vinculo','Raiz'))
                 if " de " in v:
-                    ref = v.split(" de ", 1)[-1] # MANTÉM SOBRENOMES COM "DE"
+                    ref = v.split(" de ", 1)[-1] # SPLIT SÓ NO PRIMEIRO "DE"
                     if "Cônjuge" in v:
                         dot += f'"{n}" [fillcolor="#FFF9C4", label="{n}\\n(Cônjuge)"];'
                         dot += f'"{ref}" -> "{n}" [style=dashed, constraint=false];'
@@ -216,7 +212,7 @@ else:
                 if res_img.status_code == 200: st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
             except: pass
 
-        with tabs[6]: # 7. Manual (INSTRUÇÃO DE INSTALAÇÃO ADICIONADA)
+        with tabs[6]: # 7. Manual
             st.markdown("""
             ### 📖 Manual Familia Buscape
             1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
@@ -231,9 +227,5 @@ else:
             5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.  
             **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
             
-            ---
-            **🔑 SENHA DE ACESSO:** `buscape2026`
-            
-            **📲 DICA DE INSTALAÇÃO:**
-            Para usar como aplicativo: clique nos menus do seu navegador e escolha 'Instalar' ou 'Adicionar à tela inicial'.
+            **SENHA DE ACESSO:** `buscape2026`
             """)
