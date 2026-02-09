@@ -8,25 +8,21 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (O NOME QUE APARECERÁ NO ÍCONE)
+# 1. CONFIGURAÇÃO (NOME PARA O ÍCONE NO CELULAR)
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM TOTAL (ESCONDE ABSOLUTAMENTE TUDO DO SISTEMA)
+# 2. BLINDAGEM TOTAL (ESCONDE MENU, MANAGE APP E BARRA DE SISTEMA)
 st.markdown("""
     <style>
-    /* DESATIVA MENUS, RODAPÉ E BOTÕES DE CÓDIGO */
     #MainMenu {visibility: hidden !important;}
     header {visibility: hidden !important;}
     footer {visibility: hidden !important;}
-    .stDeployButton {display:none !important;}
     [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
     [data-testid="stStatusWidget"] {display: none !important;}
-    button[title="View source cast"] {display: none !important;}
+    .stAppDeployButton {display: none !important;}
     
-    /* AJUSTE DE LAYOUT PARA NÃO CORTAR O TOPO */
     .block-container { padding-top: 2rem !important; }
-    
-    /* ESTILO DAS ABAS */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
@@ -39,7 +35,7 @@ WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJ
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES DE SUPORTE ---
+# --- FUNÇÕES ---
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -65,8 +61,7 @@ def gerar_pdf_membros(dados):
         pdf.set_font("Arial", size=10); pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {mask_tel(r.get('telefone','-'))}", ln=True)
         pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}", ln=True)
         pdf.ln(2); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
-    
-    pdf.ln(10); pdf.set_font("Arial", "I", 8)
+    pdf.ln(5); pdf.set_font("Arial", "I", 8)
     pdf.cell(0, 10, "Para usar como aplicativo: use o menu do navegador e escolha 'Adicionar a tela inicial'.", ln=True, align="C")
     return pdf.output(dest='S').encode('latin-1')
 
@@ -79,7 +74,7 @@ def carregar_dados():
             cn = normalizar(c)
             if 'nome' in cn: mapa_novo[c] = 'nome'
             elif 'nasc' in cn: mapa_novo[c] = 'nascimento'
-            elif 'vinc' in cn: mapa_novo[c] = 'vinculo'
+            elif 'vinc' in cn or 'ascend' in cn: mapa_novo[c] = 'vinculo'
             elif 'tel' in cn: mapa_novo[c] = 'telefone'
             elif 'rua' in cn: mapa_novo[c] = 'rua'
             elif 'num' in cn: mapa_novo[c] = 'num'
@@ -91,7 +86,7 @@ def carregar_dados():
         return pd.DataFrame()
     except: return pd.DataFrame()
 
-# --- LOGIN ---
+# --- INTERFACE ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -135,8 +130,9 @@ else:
                 with col_exp.expander(f"👤 {r['nome']} | 🎂 {r.get('nascimento','-')}"):
                     ci, cl = st.columns([3, 1])
                     with ci:
-                        st.write(f"📞 Tel: {mask_tel(r.get('telefone','-'))}")
-                        st.write(f"🏠 End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}")
+                        st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))}")
+                        st.write(f"🏠 **End:** {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}")
+                        st.write(f"🌳 **Vínculo:** {r.get('vinculo','-')}")
                     with cl:
                         t = limpar(r.get('telefone',''))
                         if len(t) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{t}")
@@ -158,9 +154,9 @@ else:
             with st.form("m_f"):
                 v1, v2, v3 = st.text_input("A1", avs[0]), st.text_input("A2", avs[1]), st.text_input("A3", avs[2])
                 b_s, b_l = st.columns(2)
-                if b_s.form_submit_button("💾 SALVAR"): 
+                if b_s.form_submit_button("💾 SALVAR MURAL"): 
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]}); st.success("Salvo!"); time.sleep(1); st.rerun()
-                if b_l.form_submit_button("🗑️ LIMPAR"): 
+                if b_l.form_submit_button("🗑️ LIMPAR MURAL"): 
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]}); st.rerun()
 
         with tabs[3]: # 4. Novo
@@ -175,9 +171,9 @@ else:
                 if st.form_submit_button("💾 SALVAR NOVO MEMBRO"):
                     dt_f = mask_data(dc)
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dt_f, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, em, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]})
-                    st.success(f"🎉 Cadastrado com data {dt_f}!"); time.sleep(2); st.rerun()
+                    st.success("🎉 Membro Cadastrado!"); time.sleep(2); st.rerun()
 
-        with tabs[4]: # 5. Gerenciar (RESTAURADO COMPLETO)
+        with tabs[4]: # 5. Gerenciar
             st.subheader("✏️ Editar ou Excluir Membro")
             esc = st.selectbox("Escolha quem deseja alterar", ["--"] + nomes_lista)
             if esc != "--":
@@ -204,7 +200,7 @@ else:
                         if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (MANUTENÇÃO DA LÓGICA SOFIA)
+        with tabs[5]: # 6. Árvore (RESTAURADA E CORRIGIDA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -214,8 +210,10 @@ else:
                     if "Cônjuge" in v:
                         dot += f'"{n}" [fillcolor="#FFF9C4", label="{n}\\n(Cônjuge)"];'
                         dot += f'"{ref}" -> "{n}" [style=dashed, constraint=false];'
-                    else: dot += f'"{ref}" -> "{n}" [style=solid];'
-                elif v == "Raiz": dot += f'"{n}" [fillcolor="#C8E6C9"];'
+                    else:
+                        dot += f'"{ref}" -> "{n}" [style=solid];'
+                elif v == "Raiz": 
+                    dot += f'"{n}" [fillcolor="#C8E6C9"];'
             dot += '}'
             st.graphviz_chart(dot)
             try:
@@ -224,13 +222,23 @@ else:
                 if res_img.status_code == 200: st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
             except: pass
 
-        with tabs[6]: # 7. Manual
+        with tabs[6]: # 7. Manual (RESTAURADO COMPLETO)
             st.markdown("""
-            ### 📖 Manual FBUSCAPE
-            1. **Boas-vindas!** Este portal foi criado para ser o nosso ponto de encontro oficial.
+            ### 📖 Manual Familia Buscape
+            1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
+            2. **O que sao as Abas?** **Membros:** Nossa agenda viva.  
+            **Niver:** Onde celebramos a vida a cada mes.  
+            **Mural:** Nosso quadro de avisos coletivo.  
+            **Novo:** Para a familia crescer.  
+            **Gerenciar:** Para manter tudo organizado.  
+            **Arvore:** Onde vemos quem somos e de onde viemos.
+            3. **Integracoes Magicas** Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!
+            4. **Responsabilidade** Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
+            5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.  
+            **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
             
-            **📲 DICA DE INSTALAÇÃO:**
-            Para usar como aplicativo: clique nos menus do seu navegador e escolha 'Instalar' ou 'Adicionar à tela inicial'.
+            ---
+            **🔑 SENHA DE ACESSO:** `buscape2026`
             
-            **🔑 SENHA:** `buscape2026`
+            **📲 DICA DE INSTALAÇÃO:** Para usar como aplicativo: clique nos menus do seu navegador e escolha 'Instalar' ou 'Adicionar à tela inicial'.
             """)
