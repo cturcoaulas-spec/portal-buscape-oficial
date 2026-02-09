@@ -8,29 +8,24 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (NOME DO APP NO TELEMÓVEL)
+# 1. CONFIGURAÇÃO
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM REFORÇADA (ESCONDE SISTEMA MAS MANTÉM MAÇANETA DO MENU)
+# 2. BLINDAGEM MÁXIMA (PARA COMPUTADOR E CELULAR)
 st.markdown("""
     <style>
-    /* ESCONDE O BOTÃO 'MANAGE APP' E DEPLOY */
+    /* Esconde o Manage App e botões de sistema */
     .viewerBadge_container__1QSob, .stAppDeployButton { display: none !important; }
-    
-    /* ESCONDE MENUS DE SISTEMA, DECORAÇÃO E STATUS */
     #MainMenu {visibility: hidden !important;}
-    [data-testid="stDecoration"], [data-testid="stStatusWidget"] {display: none !important;}
+    header { background-color: rgba(0,0,0,0) !important; }
     footer {visibility: hidden !important;}
     [data-testid="stToolbar"] {display: none !important;}
-
-    /* MANTÉM O HEADER TRANSPARENTE PARA O MENU LATERAL APARECER NO CELULAR */
-    header[data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0) !important;
-        color: rgba(0,0,0,0) !important;
-    }
-
-    /* ESTILO DAS ABAS E BOTÕES */
+    [data-testid="stDecoration"] {display: none !important;}
+    
+    /* Ajuste de respiro no topo */
     .block-container { padding-top: 2rem !important; }
+    
+    /* Estilo das Abas */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
@@ -38,12 +33,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# LINKS DE INTEGRAÇÃO
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJjlcMpJoxoO05lilysWJaj_udqeXqvfYFgzvWPlC-Omw/exec"
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES SUPORTE ---
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -69,8 +62,6 @@ def gerar_pdf_membros(dados):
         pdf.set_font("Arial", size=10); pdf.cell(0, 6, f"Nasc: {r.get('nascimento','-')} | Tel: {mask_tel(r.get('telefone','-'))}", ln=True)
         pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}", ln=True)
         pdf.ln(2); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
-    pdf.ln(5); pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, "Dica: Para instalar como app, use o menu do navegador e 'Adicionar a tela inicial'.", ln=True, align="C")
     return pdf.output(dest='S').encode('latin-1')
 
 @st.cache_data(ttl=2)
@@ -94,7 +85,6 @@ def carregar_dados():
         return pd.DataFrame()
     except: return pd.DataFrame()
 
-# --- LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -110,7 +100,6 @@ else:
         nomes_lista = sorted(df_m['nome'].unique().tolist())
         mes_at = datetime.now().month
 
-        # --- SIDEBAR (NOTIFICAÇÕES) ---
         with st.sidebar:
             st.title("⚙️ Painel")
             st.subheader("🔔 Notificações")
@@ -206,7 +195,7 @@ else:
                         if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (MANUTENÇÃO DA LÓGICA SOFIA)
+        with tabs[5]: # 6. Árvore (SOFIA E GABRIELA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -226,7 +215,7 @@ else:
                 if res_img.status_code == 200: st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
             except: pass
 
-        with tabs[6]: # 7. Manual (TEXTO OFICIAL RESTAURADO)
+        with tabs[6]: # 7. Manual (COMPLETO)
             st.markdown("""
             ### 📖 Manual Familia Buscape
             1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
@@ -239,11 +228,6 @@ else:
             **Arvore:** Onde vemos quem somos e de onde viemos.
             
             3. **Integracoes Magicas** Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!
-            
-            4. **Responsabilidade** Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
-            
-            5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.  
-            **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
             
             ---
             **🔑 SENHA DE ACESSO:** `buscape2026`
