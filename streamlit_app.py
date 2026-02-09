@@ -22,7 +22,6 @@ st.markdown("""
     /* LIBERA O TOPO PARA O NAVEGADOR (CHROME / SAFARI) */
     header[data-testid="stHeader"] {
         background-color: rgba(255, 255, 255, 0) !important;
-        /* Removido o pointer-events para o menu lateral (3 barrinhas) funcionar */
     }
     
     /* Aumentado o respiro no topo para a barra do navegador não sumir */
@@ -226,14 +225,22 @@ else:
                 if res_img.status_code == 200: st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
             except: pass
 
-        with tabs[6]: # 7. Manual (COMPLETO)
+        with tabs[6]: # 7. Manual (COMPLETO - AJUSTADO)
             st.markdown("""
             ### 📖 Manual Familia Buscape
             1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
-            2. **O que sao as Abas?** **Membros:** Nossa agenda viva. **Niver:** Onde celebramos a vida a cada mes. **Mural:** Nosso quadro de avisos coletivo. **Novo:** Para a familia crescer. **Gerenciar:** Para manter tudo organizado. **Arvore:** Onde vemos quem somos e de onde viemos.
+            2. **O que sao as Abas?**
+               * **Membros:** Nossa agenda viva.
+               * **Niver:** Onde celebramos a vida a cada mes.
+               * **Mural:** Nosso quadro de avisos coletivo.
+               * **Novo:** Para a familia crescer.
+               * **Gerenciar:** Para manter tudo organizado.
+               * **Arvore:** Onde vemos quem somos e de onde viemos.
             3. **Integracoes Magicas** Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!
             4. **Responsabilidade** Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
-            5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'. **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
+            5. **No seu Telemovel**
+               * **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.
+               * **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
             ---
             **🔑 SENHA DE ACESSO:** `buscape2026`
             ---
