@@ -22,17 +22,20 @@ st.markdown("""
     /* LIBERA O TOPO PARA O NAVEGADOR (CHROME / SAFARI) */
     header[data-testid="stHeader"] {
         background-color: rgba(255, 255, 255, 0) !important;
-        /* Removido o pointer-events para o menu lateral (3 barrinhas) funcionar */
     }
     
-    /* Aumentado o respiro no topo para a barra do navegador não sumir */
+    /* Respiro no topo para a barra do navegador não sumir */
     .block-container { padding-top: 3.5rem !important; }
 
-    /* ESTILO DAS ABAS E BOTÕES - PRESERVADOS */
+    /* ESTILO DAS ABAS E BOTÕES */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
     .stExpander { border-radius: 12px !important; border: 1px solid #ddd !important; }
+    
+    /* Esconde a barra lateral permanentemente */
+    [data-testid="stSidebar"] { display: none; }
+    [data-testid="stSidebarNav"] { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -106,8 +109,24 @@ else:
         nomes_lista = sorted(df_m['nome'].unique().tolist())
         mes_at = datetime.now().month
 
-        with st.sidebar:
-            st.title("⚙️ Painel")
+        st.title("🌳 Família Buscapé")
+        
+        # AJUDA INTERNA
+        if st.button("📲 COMO USAR NO CELULAR?"):
+            st.info("No Android: Toque nos 3 pontos (⋮) no topo do Chrome e escolha 'Instalar'. No iPhone: Toque no ícone de partilhar no Safari e escolha 'Ecrã principal'.")
+
+        # ADICIONADA ABA TELA INICIAL COM O CONTEÚDO DA ANTIGA LATERAL
+        tabs = st.tabs(["🏠 INÍCIO", "🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
+
+        with tabs[0]: # ABA TELA INICIAL
+            st.subheader("⚙️ Painel de Controle")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("🔄 Sincronizar"): st.cache_data.clear(); st.rerun()
+            with c2:
+                if st.button("🚪 Sair", key="btn_sair"): st.session_state.update({"logado": False}); st.rerun()
+            
+            st.divider()
             st.subheader("🔔 Notificações")
             niver_mes = []
             for _, r in df_m.iterrows():
@@ -119,19 +138,8 @@ else:
                 st.info(f"**Aniversariantes de {MESES_BR[mes_at]}:**")
                 for n in niver_mes: st.write(n)
             else: st.write("Sem avisos para este mês.")
-            st.divider()
-            if st.button("🔄 Sincronizar"): st.cache_data.clear(); st.rerun()
-            st.button("🚪 Sair", on_click=lambda: st.session_state.update({"logado": False}))
 
-        st.title("🌳 Família Buscapé")
-        
-        # AJUDA INTERNA
-        if st.button("📲 COMO USAR NO CELULAR?"):
-            st.info("No Android: Toque nos 3 pontos (⋮) no topo do Chrome e escolha 'Instalar'. No iPhone: Toque no ícone de partilhar no Safari e escolha 'Ecrã principal'.")
-
-        tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
-
-        with tabs[0]: # 1. Membros
+        with tabs[1]: # 1. Membros
             sel_ids = []; c_topo = st.container()
             for i, r in df_m.iterrows():
                 col_sel, col_exp = st.columns([0.15, 3.85])
@@ -149,13 +157,13 @@ else:
                         if rua and rua != "-": st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{rua},{r.get('num','')}')}")
             if sel_ids: c_topo.download_button("📥 PDF SELECIONADOS", gerar_pdf_membros(df_m.loc[sel_ids]), "familia.pdf")
 
-        with tabs[1]: # 2. Niver
+        with tabs[2]: # 2. Niver
             st.subheader(f"🎂 Aniversariantes de {MESES_BR[mes_at]}")
             for _, r in df_m.iterrows():
                 dt = str(r.get('nascimento',''))
                 if "/" in dt and int(dt.split('/')[1]) == mes_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
 
-        with tabs[2]: # 3. Mural
+        with tabs[3]: # 3. Mural
             try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
             except: avs = ["Vazio", "Vazio", "Vazio"]
             cols = st.columns(3)
@@ -165,7 +173,7 @@ else:
                 if st.form_submit_button("💾 SALVAR MURAL"): 
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]}); st.success("Salvo!"); time.sleep(1); st.rerun()
 
-        with tabs[3]: # 4. Novo
+        with tabs[4]: # 4. Novo
             with st.form("c_f", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1: 
@@ -179,7 +187,7 @@ else:
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dt_f, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, em, ru, nu, rc if "Cônjuge" in vc else "", ba, ce]})
                     st.success("🎉 Membro Cadastrado!"); time.sleep(2); st.rerun()
 
-        with tabs[4]: # 5. Gerenciar
+        with tabs[5]: # 5. Gerenciar
             st.subheader("✏️ Editar ou Excluir Membro")
             esc = st.selectbox("Escolha quem deseja alterar", ["--"] + nomes_lista)
             if esc != "--":
@@ -206,7 +214,7 @@ else:
                         if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (SOFIA E GABRIELA)
+        with tabs[6]: # 6. Árvore (SOFIA E GABRIELA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -226,7 +234,7 @@ else:
                 if res_img.status_code == 200: st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
             except: pass
 
-        with tabs[6]: # 7. Manual (COMPLETO)
+        with tabs[7]: # 7. Manual (COMPLETO)
             st.markdown("""
             ### 📖 Manual Familia Buscape
             1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
