@@ -8,20 +8,28 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (NOME PARA O ÍCONE NO CELULAR)
+# 1. CONFIGURAÇÃO (NOME DO APP NO TELEMÓVEL)
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM TOTAL (ESCONDE MENU, MANAGE APP E BARRA DE SISTEMA)
+# 2. BLINDAGEM REFORÇADA (ESCONDE SISTEMA MAS MANTÉM MAÇANETA DO MENU)
 st.markdown("""
     <style>
+    /* ESCONDE O BOTÃO 'MANAGE APP' E DEPLOY */
+    .viewerBadge_container__1QSob, .stAppDeployButton { display: none !important; }
+    
+    /* ESCONDE MENUS DE SISTEMA, DECORAÇÃO E STATUS */
     #MainMenu {visibility: hidden !important;}
-    header {visibility: hidden !important;}
+    [data-testid="stDecoration"], [data-testid="stStatusWidget"] {display: none !important;}
     footer {visibility: hidden !important;}
     [data-testid="stToolbar"] {display: none !important;}
-    [data-testid="stDecoration"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
-    .stAppDeployButton {display: none !important;}
-    
+
+    /* MANTÉM O HEADER TRANSPARENTE PARA O MENU LATERAL APARECER NO CELULAR */
+    header[data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0) !important;
+        color: rgba(0,0,0,0) !important;
+    }
+
+    /* ESTILO DAS ABAS E BOTÕES */
     .block-container { padding-top: 2rem !important; }
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
@@ -35,7 +43,7 @@ WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJ
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES SUPORTE ---
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -62,7 +70,7 @@ def gerar_pdf_membros(dados):
         pdf.cell(0, 6, f"End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}", ln=True)
         pdf.ln(2); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(4)
     pdf.ln(5); pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, "Para usar como aplicativo: use o menu do navegador e escolha 'Adicionar a tela inicial'.", ln=True, align="C")
+    pdf.cell(0, 10, "Dica: Para instalar como app, use o menu do navegador e 'Adicionar a tela inicial'.", ln=True, align="C")
     return pdf.output(dest='S').encode('latin-1')
 
 @st.cache_data(ttl=2)
@@ -86,7 +94,7 @@ def carregar_dados():
         return pd.DataFrame()
     except: return pd.DataFrame()
 
-# --- INTERFACE ---
+# --- LOGIN ---
 if 'logado' not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🌳 Portal Família Buscapé")
@@ -102,6 +110,7 @@ else:
         nomes_lista = sorted(df_m['nome'].unique().tolist())
         mes_at = datetime.now().month
 
+        # --- SIDEBAR (NOTIFICAÇÕES) ---
         with st.sidebar:
             st.title("⚙️ Painel")
             st.subheader("🔔 Notificações")
@@ -153,11 +162,8 @@ else:
             for idx in range(3): cols[idx].warning(f"**Aviso {idx+1}**\n\n{avs[idx]}")
             with st.form("m_f"):
                 v1, v2, v3 = st.text_input("A1", avs[0]), st.text_input("A2", avs[1]), st.text_input("A3", avs[2])
-                b_s, b_l = st.columns(2)
-                if b_s.form_submit_button("💾 SALVAR MURAL"): 
+                if st.form_submit_button("💾 SALVAR MURAL"): 
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","",v1, v2, v3, "","",""]}); st.success("Salvo!"); time.sleep(1); st.rerun()
-                if b_l.form_submit_button("🗑️ LIMPAR MURAL"): 
-                    requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]}); st.rerun()
 
         with tabs[3]: # 4. Novo
             with st.form("c_f", clear_on_submit=True):
@@ -200,7 +206,7 @@ else:
                         if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (RESTAURADA E CORRIGIDA)
+        with tabs[5]: # 6. Árvore (MANUTENÇÃO DA LÓGICA SOFIA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -210,10 +216,8 @@ else:
                     if "Cônjuge" in v:
                         dot += f'"{n}" [fillcolor="#FFF9C4", label="{n}\\n(Cônjuge)"];'
                         dot += f'"{ref}" -> "{n}" [style=dashed, constraint=false];'
-                    else:
-                        dot += f'"{ref}" -> "{n}" [style=solid];'
-                elif v == "Raiz": 
-                    dot += f'"{n}" [fillcolor="#C8E6C9"];'
+                    else: dot += f'"{ref}" -> "{n}" [style=solid];'
+                elif v == "Raiz": dot += f'"{n}" [fillcolor="#C8E6C9"];'
             dot += '}'
             st.graphviz_chart(dot)
             try:
@@ -222,18 +226,22 @@ else:
                 if res_img.status_code == 200: st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
             except: pass
 
-        with tabs[6]: # 7. Manual (RESTAURADO COMPLETO)
+        with tabs[6]: # 7. Manual (TEXTO OFICIAL RESTAURADO)
             st.markdown("""
             ### 📖 Manual Familia Buscape
             1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
+            
             2. **O que sao as Abas?** **Membros:** Nossa agenda viva.  
             **Niver:** Onde celebramos a vida a cada mes.  
             **Mural:** Nosso quadro de avisos coletivo.  
             **Novo:** Para a familia crescer.  
             **Gerenciar:** Para manter tudo organizado.  
             **Arvore:** Onde vemos quem somos e de onde viemos.
+            
             3. **Integracoes Magicas** Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!
+            
             4. **Responsabilidade** Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
+            
             5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'.  
             **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
             
