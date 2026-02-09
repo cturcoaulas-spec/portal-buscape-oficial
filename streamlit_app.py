@@ -11,34 +11,29 @@ from fpdf import FPDF
 # 1. CONFIGURAÇÃO (FBUSCAPE)
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM E AJUSTE DE INTERFACE (TUDO CONTIDO NO SCRIPT)
-# As alterações abaixo garantem que o menu do navegador apareça no celular
+# 2. BLINDAGEM CIRÚRGICA (FOCO EM LIBERAR O NAVEGADOR E SUMIR COM O SISTEMA)
 st.markdown("""
     <style>
-    /* ESCONDE APENAS O NECESSÁRIO PARA LIMPAR O VISUAL */
-    .viewerBadge_container__1QSob, .stAppDeployButton { display: none !important; }
+    /* ESCONDE O MANAGE APP E BOTÕES DE SISTEMA */
+    .viewerBadge_container__1QSob, .stAppDeployButton, #MainMenu { display: none !important; }
+    [data-testid="stStatusWidget"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
     footer { display: none !important; }
 
-    /* 
-       LIBERA O NAVEGADOR: 
-       Removida a ocultação do #MainMenu e stToolbar para que o navegador 
-       não esconda seus próprios menus (3 pontos / Compartilhar).
-    */
+    /* LIBERA O TOPO PARA O NAVEGADOR (CHROME / SAFARI) */
     header[data-testid="stHeader"] {
         background-color: rgba(255, 255, 255, 0) !important;
-        visibility: visible !important;
     }
     
-    /* Respiro no topo para a barra do navegador aparecer sem cobrir o conteúdo */
-    .block-container { padding-top: 5rem !important; }
+    /* Respiro no topo para a barra do navegador não sumir */
+    .block-container { padding-top: 3.5rem !important; }
 
-    /* ESTILO DAS ABAS E BOTÕES (MANTIDO CONFORME ORIGINAL) */
+    /* ESTILO DAS ABAS E BOTÕES */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
     .stExpander { border-radius: 12px !important; border: 1px solid #ddd !important; }
     
-    /* Esconde a barra lateral para focar na navegação por abas */
+    /* Esconde a barra lateral permanentemente */
     [data-testid="stSidebar"] { display: none; }
     [data-testid="stSidebarNav"] { display: none; }
     </style>
@@ -49,7 +44,7 @@ WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJ
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES SUPORTE ---
+# --- FUNÇÕES SUPORTE (MANTIDAS) ---
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -118,9 +113,9 @@ else:
         
         # AJUDA INTERNA
         if st.button("📲 COMO USAR NO CELULAR?"):
-            st.info("No Android: Toque nos 3 pontos (⋮) no topo do Chrome e escolha 'Instalar' ou 'Adicionar à tela inicial'. No iPhone: Toque no ícone de partilhar (seta para cima) no Safari e escolha 'Ecrã principal'.")
+            st.info("No Android: Toque nos 3 pontos (⋮) no topo do Chrome e escolha 'Instalar'. No iPhone: Toque no ícone de partilhar no Safari e escolha 'Ecrã principal'.")
 
-        # CONTEÚDO EM ABAS
+        # ADICIONADA ABA TELA INICIAL COM O CONTEÚDO DA ANTIGA LATERAL
         tabs = st.tabs(["🏠 INÍCIO", "🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
         with tabs[0]: # ABA TELA INICIAL
@@ -219,7 +214,7 @@ else:
                         if b2.form_submit_button("🗑️ EXCLUIR MEMBRO"):
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[6]: # 6. Árvore
+        with tabs[6]: # 6. Árvore (SOFIA E GABRIELA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -239,13 +234,16 @@ else:
                 if res_img.status_code == 200: st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
             except: pass
 
-        with tabs[7]: # 7. Manual
+        with tabs[7]: # 7. Manual (COMPLETO)
             st.markdown("""
             ### 📖 Manual Familia Buscape
-            1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial.
-            2. **O que sao as Abas?** **Membros:** Nossa agenda viva. **Niver:** Onde celebramos a vida. **Mural:** Avisos coletivos. **Novo:** Para a familia crescer. **Gerenciar:** Organização. **Arvore:** Nossa linhagem.
-            3. **Integracoes** Botão de WhatsApp abre conversa direta. Botão de Mapa abre GPS no endereço.
-            4. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'. **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
+            1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
+            2. **O que sao as Abas?** **Membros:** Nossa agenda viva. **Niver:** Onde celebramos a vida a cada mes. **Mural:** Nosso quadro de avisos coletivo. **Novo:** Para a familia crescer. **Gerenciar:** Para manter tudo organizado. **Arvore:** Onde vemos quem somos e de onde viemos.
+            3. **Integracoes Magicas** Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!
+            4. **Responsabilidade** Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
+            5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'. **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
             ---
             **🔑 SENHA DE ACESSO:** `buscape2026`
+            ---
+            **📲 DICA DE INSTALAÇÃO:** Para usar como aplicativo, use o menu do navegador e escolha 'Adicionar à tela inicial'.
             """)
