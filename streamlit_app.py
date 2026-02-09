@@ -8,10 +8,10 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (OBRIGATORIAMENTE O PRIMEIRO COMANDO)
+# 1. CONFIGURAÇÃO (PRIMEIRO COMANDO)
 st.set_page_config(page_title="Família Buscapé", page_icon="🌳", layout="wide")
 
-# 2. BLOCO DE SEGURANÇA E ESTILO (TRAVAS DE VISUALIZAÇÃO)
+# 2. BLOCO DE SEGURANÇA E ESTILO (ESCONDE MENUS)
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -20,8 +20,7 @@ st.markdown("""
     .stDeployButton {display:none;}
     [data-testid="stToolbar"] {visibility: hidden !important;}
     
-    /* Ajuste para mobile */
-    .stApp { margin-top: -50px; }
+    .stApp { margin-top: -60px; }
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
@@ -64,14 +63,14 @@ def carregar_dados():
         cols_originais = df.columns
         mapa_novo = {}
         for c in cols_originais:
-            c_norm = normalizar(c)
-            if 'nome' in c_norm: mapa_novo[c] = 'nome'
-            elif 'nasc' in c_norm: mapa_novo[c] = 'nascimento'
-            elif 'vinc' in c_norm: mapa_novo[c] = 'vinculo'
-            elif 'tel' in c_norm: mapa_novo[c] = 'telefone'
-            elif 'rua' in c_norm: mapa_novo[c] = 'rua'
-            elif 'num' in c_norm: mapa_novo[c] = 'num'
-            elif 'bair' in c_norm: mapa_novo[c] = 'bairro'
+            cn = normalizar(c)
+            if 'nome' in cn: mapa_novo[c] = 'nome'
+            elif 'nasc' in cn: mapa_novo[c] = 'nascimento'
+            elif 'vinc' in cn: mapa_novo[c] = 'vinculo'
+            elif 'tel' in cn: mapa_novo[c] = 'telefone'
+            elif 'rua' in cn: mapa_novo[c] = 'rua'
+            elif 'num' in cn: mapa_novo[c] = 'num'
+            elif 'bair' in cn: mapa_novo[c] = 'bairro'
         df = df.rename(columns=mapa_novo)
         if 'nome' in df.columns:
             df['nome'] = df['nome'].str.strip()
@@ -90,7 +89,7 @@ if not st.session_state.logado:
 else:
     df_todo = carregar_dados()
     if df_todo.empty:
-        st.error("⚠️ Erro ao carregar dados da planilha.")
+        st.error("⚠️ Erro ao carregar dados.")
     else:
         df_m = df_todo[df_todo['nome'] != ""].sort_values(by='nome').copy()
         nomes_lista = sorted(df_m['nome'].unique().tolist())
@@ -104,7 +103,7 @@ else:
         st.title("🌳 Família Buscapé")
         tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
-        with tabs[0]: # 1. Membros
+        with tabs[0]: # ABA 0: Membros
             sel_ids = []; c_topo = st.container()
             for i, r in df_m.iterrows():
                 col_sel, col_exp = st.columns([0.15, 3.85])
@@ -117,13 +116,20 @@ else:
                     with cl:
                         t = limpar(r.get('telefone',''))
                         if len(t) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{t}")
-                        end_rua = str(r.get('rua', '')).strip()
-                        if end_rua and end_rua != "-":
-                            st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{end_rua},{r.get('num','')}')}")
+                        rua = str(r.get('rua', '')).strip()
+                        if rua and rua != "-":
+                            st.link_button("📍 Mapa", f"https://www.google.com/maps/search/?api=1&query={quote(f'{rua},{r.get('num','')}')}")
             if sel_ids:
                 c_topo.download_button("📥 PDF SELECIONADOS", gerar_pdf_membros(df_m.loc[sel_ids]), "familia.pdf")
 
-        with tabs[2]: # 3. Mural
+        with tabs[1]: # ABA 1: Niver
+            m_at = datetime.now().month
+            st.subheader(f"🎂 Aniversariantes de {MESES_BR[m_at]}")
+            for _, r in df_m.iterrows():
+                dt = str(r.get('nascimento',''))
+                if "/" in dt and int(dt.split('/')[1]) == m_at: st.info(f"🎈 Dia {dt.split('/')[0]} - {r['nome']}")
+
+        with tabs[2]: # ABA 2: Mural
             try: avs = [df_todo.iloc[0].get('email','Vazio'), df_todo.iloc[0].get('rua','Vazio'), df_todo.iloc[0].get('num','Vazio')]
             except: avs = ["Vazio", "Vazio", "Vazio"]
             cols = st.columns(3)
@@ -136,7 +142,7 @@ else:
                 if b_l.form_submit_button("🗑️ LIMPAR"): 
                     requests.post(WEBAPP_URL, json={"action":"edit", "row":2, "data":["AVISO","","","","Vazio","Vazio","Vazio","","",""]}); st.rerun()
 
-        with tabs[3]: # 4. Cadastrar
+        with tabs[3]: # ABA 3: Novo
             with st.form("c_f", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1: nc = st.text_input("Nome *"); dc = st.text_input("Nasc *"); tc = st.text_input("Tel")
@@ -144,7 +150,7 @@ else:
                 if st.form_submit_button("💾 CADASTRAR"):
                     requests.post(WEBAPP_URL, json={"action":"append", "data":[nc, dc, f"{vc} {rc}" if rc!="Raiz" else "Raiz", tc, "", "", "", "", "", ""]}); st.rerun()
 
-        with tabs[4]: # 5. Gerenciar
+        with tabs[4]: # ABA 4: Gerenciar
             esc = st.selectbox("Editar", ["--"] + nomes_lista)
             if esc != "--":
                 m = df_m[df_m['nome'] == esc].iloc[0]; idx = df_todo.index[df_todo['nome'] == esc].tolist()[0] + 2
@@ -156,4 +162,16 @@ else:
                     if b2.form_submit_button("🗑️ EXCLUIR"):
                         requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10}); st.rerun()
 
-        with tabs
+        with tabs[5]: # ABA 5: Árvore
+            dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
+            for _, r in df_m.iterrows():
+                n, v = str(r['nome']), str(r.get('vinculo','Raiz'))
+                if " de " in v:
+                    ref = v.split(" de ")[-1]
+                    if "Cônjuge" in v: dot += f'"{n}" [fillcolor="#FFF9C4", label="{n}\\n(Cônjuge)"];'
+                    else: dot += f'"{ref}" -> "{n}" [style=solid];'
+                elif v == "Raiz": dot += f'"{n}" [fillcolor="#C8E6C9"];'
+            st.graphviz_chart(dot + '}')
+
+        with tabs[6]: # ABA 6: Manual
+            st.markdown("### 📖 Guia: Senha: **buscape2026**")
