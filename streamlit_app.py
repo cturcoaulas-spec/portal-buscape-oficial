@@ -98,7 +98,7 @@ else:
         nomes_lista = sorted(df_m['nome'].unique().tolist())
         mes_at = datetime.now().month
 
-        # --- SIDEBAR (NOTIFICAÇÕES) ---
+        # --- SIDEBAR ---
         with st.sidebar:
             st.title("⚙️ Painel")
             st.subheader("🔔 Notificações")
@@ -202,7 +202,7 @@ else:
                             requests.post(WEBAPP_URL, json={"action":"edit", "row":idx, "data":[""]*10})
                             st.warning("Excluído!"); time.sleep(1); st.rerun()
 
-        with tabs[5]: # 6. Árvore (RESTAURADA E COM BOTÃO DE SALVAR)
+        with tabs[5]: # 6. Árvore (DOWNLOAD COMO IMAGEM PNG)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"]; edge [color="#546E7A"];'
             for _, row in df_m.iterrows():
@@ -218,8 +218,15 @@ else:
                     dot += f'"{n}" [fillcolor="#C8E6C9"];'
             dot += '}'
             st.graphviz_chart(dot)
-            # BOTÃO DE SALVAR ESTRUTURA
-            st.download_button("💾 SALVAR ARQUIVO DA ÁRVORE", dot, "arvore_buscape.dot")
+            
+            # GERAÇÃO DA IMAGEM VIA API (QuickChart)
+            try:
+                img_url = f"https://quickchart.io/graphviz?format=png&width=1000&graph={quote(dot)}"
+                res_img = requests.get(img_url)
+                if res_img.status_code == 200:
+                    st.download_button("📥 BAIXAR ÁRVORE COMO IMAGEM (PNG)", res_img.content, "arvore_buscape.png", "image/png")
+            except:
+                st.warning("Não foi possível gerar a imagem para download no momento.")
 
         with tabs[6]: # 7. Manual
             st.markdown("""
