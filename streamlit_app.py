@@ -11,13 +11,22 @@ from fpdf import FPDF
 # 1. CONFIGURAÇÃO (FBUSCAPE)
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM CIRÚRGICA (FOCO EM SUMIR COM O SISTEMA SEM AFETAR O NAVEGADOR)
+# 2. BLINDAGEM CIRÚRGICA (FOCO EM LIBERAR O NAVEGADOR E SUMIR COM O SISTEMA)
 st.markdown("""
     <style>
     /* ESCONDE O MANAGE APP E BOTÕES DE SISTEMA */
     .viewerBadge_container__1QSob, .stAppDeployButton, #MainMenu { display: none !important; }
     [data-testid="stStatusWidget"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
     footer { display: none !important; }
+
+    /* LIBERA O TOPO PARA O NAVEGADOR (CHROME / SAFARI) */
+    header[data-testid="stHeader"] {
+        background-color: rgba(255, 255, 255, 0) !important;
+        /* Removido o pointer-events para o menu lateral (3 barrinhas) funcionar */
+    }
+    
+    /* Aumentado o respiro no topo para a barra do navegador não sumir */
+    .block-container { padding-top: 3.5rem !important; }
 
     /* ESTILO DAS ABAS E BOTÕES - PRESERVADOS */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
