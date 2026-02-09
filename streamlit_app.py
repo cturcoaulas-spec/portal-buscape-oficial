@@ -8,29 +8,24 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (O NOME DO APP NO ÍCONE)
+# 1. CONFIGURAÇÃO (FBUSCAPE)
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM CIRÚRGICA (TIRA O SISTEMA, LIBERA O NAVEGADOR)
+# 2. BLINDAGEM CIRÚRGICA (FOCO EM LIBERAR O NAVEGADOR E SUMIR COM O SISTEMA)
 st.markdown("""
     <style>
-    /* 1. ESCONDE O MANAGE APP, O BOTÃO DE CÓDIGO E O DEPLOY */
-    [data-testid="stStatusWidget"], 
-    .viewerBadge_container__1QSob, 
-    .stAppDeployButton, 
-    #MainMenu, 
-    header, 
-    footer,
-    [data-testid="stToolbar"],
-    [data-testid="stDecoration"] {
-        display: none !important;
-        visibility: hidden !important;
-    }
+    /* ESCONDE O MANAGE APP E BOTÕES DE SISTEMA */
+    .viewerBadge_container__1QSob, .stAppDeployButton, #MainMenu { display: none !important; }
+    [data-testid="stStatusWidget"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
+    footer { display: none !important; }
 
-    /* 2. LIBERA O ESPAÇO DO TOPO PARA O NAVEGADOR (GOOGLE/SAFARI) */
-    .block-container { 
-        padding-top: 1rem !important; 
+    /* LIBERA O TOPO PARA O GOOGLE CHROME / SAFARI */
+    header[data-testid="stHeader"] {
+        background-color: rgba(255, 255, 255, 0) !important;
+        pointer-events: none !important; /* Deixa o clique passar para o navegador */
     }
+    
+    .block-container { padding-top: 1rem !important; }
 
     /* ESTILO DAS ABAS E BOTÕES - PRESERVADOS */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
@@ -45,7 +40,7 @@ WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJ
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES SUPORTE (MANTIDAS) ---
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -128,6 +123,11 @@ else:
             st.button("🚪 Sair", on_click=lambda: st.session_state.update({"logado": False}))
 
         st.title("🌳 Família Buscapé")
+        
+        # AJUDA INTERNA
+        if st.button("📲 COMO USAR NO CELULAR?"):
+            st.info("No Android: Toque nos 3 pontos (⋮) no topo do Chrome e escolha 'Instalar'. No iPhone: Toque no ícone de partilhar no Safari e escolha 'Ecrã principal'.")
+
         tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
         with tabs[0]: # 1. Membros
@@ -138,9 +138,9 @@ else:
                 with col_exp.expander(f"👤 {r['nome']} | 🎂 {r.get('nascimento','-')}"):
                     ci, cl = st.columns([3, 1])
                     with ci:
-                        st.write(f"📞 **Tel:** {mask_tel(r.get('telefone','-'))}")
-                        st.write(f"🏠 **End:** {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}")
-                        st.write(f"🌳 **Vínculo:** {r.get('vinculo','-')}")
+                        st.write(f"📞 Tel: {mask_tel(r.get('telefone','-'))}")
+                        st.write(f"🏠 End: {r.get('rua','-')}, {r.get('num','-')} - {r.get('bairro','-')}")
+                        st.write(f"🌳 Vínculo: {r.get('vinculo','-')}")
                     with cl:
                         t = limpar(r.get('telefone',''))
                         if len(t) >= 10: st.link_button("💬 Zap", f"https://wa.me/55{t}")
