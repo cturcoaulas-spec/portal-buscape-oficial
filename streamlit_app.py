@@ -11,7 +11,7 @@ from fpdf import FPDF
 # 1. CONFIGURAÇÃO (FBUSCAPE)
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM CIRÚRGICA (FOCO EM LIBERAR O NAVEGADOR E SUMIR COM O SISTEMA)
+# 2. BLINDAGEM CIRÚRGICA (LIBERA O NAVEGADOR E SUBSTITUI A LATERAL POR ABA)
 st.markdown("""
     <style>
     /* ESCONDE O MANAGE APP E BOTÕES DE SISTEMA */
@@ -24,8 +24,8 @@ st.markdown("""
         background-color: rgba(255, 255, 255, 0) !important;
     }
     
-    /* Respiro no topo para a barra do navegador não sumir */
-    .block-container { padding-top: 3.5rem !important; }
+    /* Respiro no topo para a barra do navegador (3 pontinhos) aparecer */
+    .block-container { padding-top: 4rem !important; }
 
     /* ESTILO DAS ABAS E BOTÕES */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
@@ -33,7 +33,7 @@ st.markdown("""
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; width: 100% !important; }
     .stExpander { border-radius: 12px !important; border: 1px solid #ddd !important; }
     
-    /* Esconde a barra lateral permanentemente */
+    /* Esconde a barra lateral permanentemente para focar na aba INÍCIO */
     [data-testid="stSidebar"] { display: none; }
     [data-testid="stSidebarNav"] { display: none; }
     </style>
@@ -44,7 +44,7 @@ WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzWJ_nDGDe4a81O5BDx3meMbVJ
 CSV_URL = "https://docs.google.com/spreadsheets/d/1jrtIP1lN644dPqY0HPGGwPWQGyYwb8nWsUigVK3QZio/export?format=csv"
 MESES_BR = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
-# --- FUNÇÕES SUPORTE (MANTIDAS) ---
+# --- FUNÇÕES SUPORTE (MANTIDAS CONFORME SEU SCRIPT) ---
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -115,7 +115,7 @@ else:
         if st.button("📲 COMO USAR NO CELULAR?"):
             st.info("No Android: Toque nos 3 pontos (⋮) no topo do Chrome e escolha 'Instalar'. No iPhone: Toque no ícone de partilhar no Safari e escolha 'Ecrã principal'.")
 
-        # ADICIONADA ABA TELA INICIAL COM O CONTEÚDO DA ANTIGA LATERAL
+        # CONTEÚDO DA ANTIGA LATERAL AGORA NA ABA "INÍCIO"
         tabs = st.tabs(["🏠 INÍCIO", "🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
         with tabs[0]: # ABA TELA INICIAL
