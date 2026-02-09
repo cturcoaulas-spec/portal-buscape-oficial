@@ -8,35 +8,37 @@ from urllib.parse import quote
 from datetime import datetime
 from fpdf import FPDF
 
-# 1. CONFIGURAÇÃO (FBUSCAPE)
+# 1. CONFIGURAÇÃO DO APP
 st.set_page_config(page_title="FBUSCAPE", page_icon="🌳", layout="wide")
 
-# 2. BLINDAGEM EQUILIBRADA (LIBERA O SITE E O NAVEGADOR)
+# 2. BLINDAGEM EQUILIBRADA (NÃO ESCONDE O CONTEÚDO INTERNO)
 st.markdown("""
     <style>
-    /* Esconde o Manage App e o Deploy para a família */
+    /* Esconde apenas o botão vermelho e o menu técnico do Streamlit */
     .viewerBadge_container__1QSob, .stAppDeployButton, #MainMenu { display: none !important; }
+    [data-testid="stStatusWidget"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
     footer { display: none !important; }
-    
-    /* Garante que o cabeçalho e o botão do menu lateral apareçam */
+
+    /* Devolve o botão do menu lateral (as três barrinhas) no celular */
     header[data-testid="stHeader"] {
         visibility: visible !important;
         background-color: white !important;
     }
 
-    /* Espaço para o navegador (Chrome/Safari) mostrar os 3 pontinhos */
+    /* Respiro para o navegador (Chrome/Safari) mostrar os 3 pontinhos */
     .block-container { 
         padding-top: 4rem !important; 
+        display: block !important; /* Garante que o conteúdo interno apareça */
     }
 
-    /* Estilo das Abas */
+    /* Estilo das Abas - PRESERVADO */
     [data-baseweb="tab-list"] { gap: 8px; overflow-x: auto; }
     [data-baseweb="tab"] { padding: 10px; border-radius: 10px; background: #f0f2f6; min-width: 110px; }
     button { height: 3.5em !important; font-weight: bold !important; border-radius: 12px !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÕES DE SUPORTE (A LINHA DO BORDADO) ---
+# --- FUNÇÕES DE SUPORTE (A LINHA DO SEU PROJETO) ---
 def normalizar(t):
     return "".join(ch for ch in unicodedata.normalize('NFKD', str(t).lower()) if not unicodedata.combining(ch)).strip()
 
@@ -70,8 +72,7 @@ def carregar_dados():
             elif 'cep' in cn: mapa_novo[c] = 'cep'
             elif 'emai' in cn: mapa_novo[c] = 'email'
         df = df.rename(columns=mapa_novo)
-        if 'nome' in df.columns: df['nome'] = df['nome'].str.strip(); return df
-        return pd.DataFrame()
+        return df if 'nome' in df.columns else pd.DataFrame()
     except: return pd.DataFrame()
 
 # --- INTERFACE ---
@@ -89,6 +90,7 @@ else:
         df_m = df_todo[df_todo['nome'] != ""].sort_values(by='nome').copy()
         mes_at = datetime.now().month
 
+        # BARRA LATERAL RESTAURADA
         with st.sidebar:
             st.title("⚙️ Painel")
             st.subheader("🔔 Notificações")
@@ -102,7 +104,13 @@ else:
         st.title("🌳 Família Buscapé")
         tabs = st.tabs(["🔍 Membros", "🎂 Niver", "📢 Mural", "➕ Novo", "✏️ Gerenciar", "🌳 Árvore", "📖 Manual"])
 
-        with tabs[5]: # Árvore (Sofia/Gabriela)
+        with tabs[0]: # 1. Membros
+            for i, r in df_m.iterrows():
+                with st.expander(f"👤 {r['nome']}"):
+                    st.write(f"📞 Tel: {mask_tel(r.get('telefone','-'))}")
+                    st.write(f"🏠 End: {r.get('rua','-')}, {r.get('num','-')}")
+
+        with tabs[5]: # 6. Árvore (SOFIA E GABRIELA)
             st.subheader("🌳 Nossa Árvore")
             dot = 'digraph G { rankdir=LR; node [shape=box, style=filled, fillcolor="#E1F5FE", fontname="Arial"];'
             for _, row in df_m.iterrows():
@@ -117,13 +125,10 @@ else:
         with tabs[6]: # 7. Manual (COMPLETO)
             st.markdown("""
             ### 📖 Manual Familia Buscape
-            1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. Aqui, nossa historia e nossos contatos estao protegidos e sempre a mao.
-            2. **O que sao as Abas?** **Membros:** Nossa agenda viva. **Niver:** Onde celebramos a vida a cada mes. **Mural:** Nosso quadro de avisos coletivo. **Novo:** Para a familia crescer. **Gerenciar:** Para manter tudo organizado. **Arvore:** Onde vemos quem somos e de onde viemos.
-            3. **Integracoes Magicas** Clicando no botao de WhatsApp, voce fala com o parente sem precisar salvar o numero. Clicando no botao de Mapa, o GPS do seu telemovel abre direto na porta da casa dele!
-            4. **Responsabilidade** Lembre-se: o que voce apaga aqui, apaga para todos. Use com carinho e mantenha seus dados sempre em dia!
-            5. **No seu Telemovel** **Android (Chrome):** clique nos 3 pontinhos e 'Instalar'. **iPhone (Safari):** clique na seta de partilhar e 'Ecra principal'.
+            1. **Boas-vindas!** Este portal foi criado pela Valeria para ser o nosso ponto de encontro oficial. 
+            2. **Abas:** **Membros** (Agenda), **Niver** (Aniversários), **Mural** (Avisos), **Novo** (Cadastro), **Gerenciar** (Edição), **Árvore** (Nossa história).
+            3. **Ações:** Clique no WhatsApp para falar direto ou no Mapa para abrir o GPS.
+            4. **No Celular:** **Android (Chrome):** use os 3 pontinhos e 'Instalar'. **iPhone (Safari):** use a seta de partilhar e 'Ecrã principal'.
             ---
-            **🔑 SENHA DE ACESSO:** `buscape2026`
-            ---
-            **📲 DICA DE INSTALAÇÃO:** Para usar como aplicativo, use o menu do navegador e escolha 'Adicionar à tela inicial'.
+            **🔑 SENHA:** `buscape2026`
             """)
